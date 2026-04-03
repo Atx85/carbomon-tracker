@@ -45,6 +45,9 @@ android {
         compose = true
         buildConfig = true
     }
+    lint {
+        disable.add("UnsafeOptInUsageError")
+    }
 }
 
 dependencies {

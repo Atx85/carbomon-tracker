@@ -12,7 +12,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -54,6 +56,8 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
@@ -523,6 +527,7 @@ private fun ProfileSetupSection(
     }
 }
 
+@OptIn(ExperimentalGetImage::class)
 @Composable
 private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -> Unit) {
     val context = LocalContext.current
@@ -959,6 +964,32 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
         RecipeBuilderDialog(state = state, onAction = onAction)
     }
 
+    if (state.showRecipeScanner) {
+        AlertDialog(
+            modifier = Modifier.fillMaxWidth(0.95f),
+            onDismissRequest = { onAction(NutritionAction.HideRecipeScanner) },
+            title = { Text(stringResource(R.string.point_camera_barcode)) },
+            text = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.fillMaxWidth().height(260.dp)) {
+                        BarcodeCameraPreview(
+                            onBarcodeDetected = { code ->
+                                onAction(NutritionAction.UpdateRecipeIngredientBarcode(code))
+                                onAction(NutritionAction.LookupRecipeIngredientBarcode)
+                                onAction(NutritionAction.HideRecipeScanner)
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onAction(NutritionAction.HideRecipeScanner) }) {
+                    Text(stringResource(R.string.close_scanner))
+                }
+            }
+        )
+    }
+
     if (state.showDeleteRecipeDialog && state.recipePendingDelete != null) {
         AlertDialog(
             onDismissRequest = { onAction(NutritionAction.CancelDeleteRecipe) },
@@ -1077,14 +1108,48 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
                         }
                     }
                     RecipeLookupTab.BARCODE -> {
+                        val context = LocalContext.current
+                        val hasCameraPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                        val cameraPermissionLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.RequestPermission()
+                        ) { granted ->
+                            if (granted) {
+                                onAction(NutritionAction.ShowRecipeScanner)
+                            } else {
+                                onAction(NutritionAction.DenyRecipeIngredientCameraPermission)
+                            }
+                        }
                         OutlinedTextField(
                             value = state.recipeIngredientBarcodeInput,
                             onValueChange = { onAction(NutritionAction.UpdateRecipeIngredientBarcode(it)) },
                             label = { Text(stringResource(R.string.barcode_label)) },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Button(onClick = { onAction(NutritionAction.LookupRecipeIngredientBarcode) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.scan_barcode))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            IconButton(onClick = { onAction(NutritionAction.LookupRecipeIngredientBarcode) }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Filled.QrCode, contentDescription = stringResource(R.string.lookup_barcode))
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (hasCameraPermission) {
+                                        onAction(NutritionAction.ShowRecipeScanner)
+                                    } else {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Filled.PhotoCamera, contentDescription = stringResource(R.string.scan_barcode_camera))
+                            }
+                        }
+                        if (state.recipeIngredientCameraDenied) {
+                            Text(
+                                stringResource(R.string.camera_permission_denied),
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                     RecipeLookupTab.MANUAL -> {
@@ -1254,6 +1319,7 @@ private fun BarcodeScannerCard(
     }
 }
 
+@androidx.camera.core.ExperimentalGetImage
 @Composable
 private fun BarcodeCameraPreview(onBarcodeDetected: (String) -> Unit) {
     val context = LocalContext.current
@@ -1703,7 +1769,9 @@ data class NutritionUiState(
     val manualRecipePotassium: String = "",
     val manualRecipeCalcium: String = "",
     val manualRecipeIron: String = "",
-    val editingRecipeIngredientIndex: Int? = null
+    val editingRecipeIngredientIndex: Int? = null,
+    val showRecipeScanner: Boolean = false,
+    val recipeIngredientCameraDenied: Boolean = false
 )
 
 sealed interface NutritionAction {
@@ -1751,6 +1819,9 @@ sealed interface NutritionAction {
     data class RemoveRecipeIngredient(val index: Int) : NutritionAction
     data object SearchRecipeIngredients : NutritionAction
     data object LookupRecipeIngredientBarcode : NutritionAction
+    data object ShowRecipeScanner : NutritionAction
+    data object HideRecipeScanner : NutritionAction
+    data object DenyRecipeIngredientCameraPermission : NutritionAction
     data class RequestDeleteRecipe(val recipe: Recipe) : NutritionAction
     data object ConfirmDeleteRecipe : NutritionAction
     data object CancelDeleteRecipe : NutritionAction
@@ -1889,6 +1960,9 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             is NutritionAction.RemoveRecipeIngredient -> uiState = uiState.copy(recipeIngredientsInput = uiState.recipeIngredientsInput.filterIndexed { i, _ -> i != action.index })
             NutritionAction.SearchRecipeIngredients -> searchRecipeIngredients()
             NutritionAction.LookupRecipeIngredientBarcode -> lookupRecipeIngredientBarcode()
+            NutritionAction.ShowRecipeScanner -> uiState = uiState.copy(showRecipeScanner = true, recipeIngredientCameraDenied = false)
+            NutritionAction.HideRecipeScanner -> uiState = uiState.copy(showRecipeScanner = false)
+            NutritionAction.DenyRecipeIngredientCameraPermission -> uiState = uiState.copy(recipeIngredientCameraDenied = true)
             is NutritionAction.RequestDeleteRecipe -> uiState = uiState.copy(recipePendingDelete = action.recipe, showDeleteRecipeDialog = true)
             NutritionAction.CancelDeleteRecipe -> uiState = uiState.copy(recipePendingDelete = null, showDeleteRecipeDialog = false)
             NutritionAction.ConfirmDeleteRecipe -> deleteRecipe()
