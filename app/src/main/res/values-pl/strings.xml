@@ -117,4 +117,22 @@
     <string name="protein">Białko</string>
     <string name="carbs">Węglowodany</string>
     <string name="fat">Tłuszcz</string>
+    <string name="create_new_recipe">Utwórz nowy przepis</string>
+    <string name="my_recipes">Moje przepisy</string>
+    <string name="ingredients_count">%1$d składnik(ów)</string>
+    <string name="edit">Edytuj</string>
+    <string name="delete">Usuń</string>
+    <string name="no_recipes_yet">Brak przepisów. Utwórz jeden, aby zacząć!</string>
+    <string name="delete_recipe">Usuń przepis</string>
+    <string name="confirm_delete_recipe">Czy na pewno chcesz usunąć przepis \'%1$s\'?</string>
+    <string name="yes_delete">Tak, usuń</string>
+    <string name="create_recipe">Utwórz przepis</string>
+    <string name="recipe_name">Nazwa przepisu</string>
+    <string name="notes_optional">Uwagi (opcjonalnie)</string>
+    <string name="ingredients_title">Składniki (%1$d)</string>
+    <string name="ingredient_search">Wyszukiwanie składników</string>
+    <string name="scan_barcode">Skanuj kod kreskowy</string>
+    <string name="kcal_label">kcal</string>
+    <string name="barcode_label">Kod kreskowy</string>
+    <string name="save_recipe">Zapisz przepis</string>
 </resources>

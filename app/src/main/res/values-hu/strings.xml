@@ -117,4 +117,22 @@
     <string name="protein">Fehérje</string>
     <string name="carbs">Szénhidrát</string>
     <string name="fat">Zsír</string>
+    <string name="create_new_recipe">Új recept létrehozása</string>
+    <string name="my_recipes">Saját receptek</string>
+    <string name="ingredients_count">%1$d összetevő</string>
+    <string name="edit">Szerkesztés</string>
+    <string name="delete">Törlés</string>
+    <string name="no_recipes_yet">Még nincsenek receptek. Hozz létre egyet a kezdéshez!</string>
+    <string name="delete_recipe">Recept törlése</string>
+    <string name="confirm_delete_recipe">Biztosan törölni szeretnéd a(z) \'%1$s\' receptet?</string>
+    <string name="yes_delete">Igen, törlés</string>
+    <string name="create_recipe">Recept létrehozása</string>
+    <string name="recipe_name">Recept neve</string>
+    <string name="notes_optional">Megjegyzések (opcionális)</string>
+    <string name="ingredients_title">Összetevők (%1$d)</string>
+    <string name="ingredient_search">Összetevő keresés</string>
+    <string name="scan_barcode">Vonalkód beolvasása</string>
+    <string name="kcal_label">kcal</string>
+    <string name="barcode_label">Vonalkód</string>
+    <string name="save_recipe">Recept mentése</string>
 </resources>

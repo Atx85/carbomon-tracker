@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -47,11 +48,14 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
@@ -137,6 +141,12 @@ enum class LookupTab {
     MANUAL,
     HISTORY,
     RECIPES
+}
+
+enum class RecipeLookupTab {
+    NAME,
+    BARCODE,
+    MANUAL
 }
 
 enum class FoodSource {
@@ -583,7 +593,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                 Tab(
                     selected = lookupTab == LookupTab.RECIPES,
                     onClick = { lookupTab = LookupTab.RECIPES },
-                    icon = { Icon(Icons.Filled.BlenderOutlined, contentDescription = "My Recipes") }
+                    icon = { Icon(Icons.Filled.Restaurant, contentDescription = "My Recipes") }
                 )
             }
 
@@ -662,7 +672,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                         OutlinedTextField(
                             value = manualCalories,
                             onValueChange = { manualCalories = it },
-                            label = { Text("kcal") },
+                            label = { Text(stringResource(R.string.kcal_label)) },
                             modifier = Modifier.weight(1f)
                         )
                         OutlinedTextField(
@@ -811,10 +821,10 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                 LookupTab.RECIPES -> {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { onAction(NutritionAction.ShowAddRecipeDialog) }) {
-                            Text("Create New Recipe")
+                            Text(stringResource(R.string.create_new_recipe))
                         }
                         if (state.recipes.isNotEmpty()) {
-                            Text("My Recipes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.my_recipes), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -823,12 +833,60 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 state.recipes.forEach { recipe ->
+                                    val totalCalories = recipe.ingredients.sumOf { it.caloriesPer100g * it.gramsUsed / 100.0 }
+                                    val totalProtein = recipe.ingredients.sumOf { it.proteinPer100g * it.gramsUsed / 100.0 }
+                                    val totalCarbs = recipe.ingredients.sumOf { it.carbsPer100g * it.gramsUsed / 100.0 }
+                                    val totalFat = recipe.ingredients.sumOf { it.fatPer100g * it.gramsUsed / 100.0 }
+                                    val totalFiber = recipe.ingredients.sumOf { it.fiberPer100g * it.gramsUsed / 100.0 }
+                                    val totalSugar = recipe.ingredients.sumOf { it.sugarPer100g * it.gramsUsed / 100.0 }
+                                    val totalSodiumMg = recipe.ingredients.sumOf { it.sodiumMgPer100g * it.gramsUsed / 100.0 }
+                                    val totalPotassiumMg = recipe.ingredients.sumOf { it.potassiumMgPer100g * it.gramsUsed / 100.0 }
+                                    val totalCalciumMg = recipe.ingredients.sumOf { it.calciumMgPer100g * it.gramsUsed / 100.0 }
+                                    val totalIronMg = recipe.ingredients.sumOf { it.ironMgPer100g * it.gramsUsed / 100.0 }
+
                                     Card(Modifier.fillMaxWidth()) {
                                         Column(
                                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                                             verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            Text(recipe.name, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)\n                                            Text("${recipe.ingredients.size} ingredient(s)", style = MaterialTheme.typography.bodySmall)\n                                            if (recipe.notes.isNotBlank()) {\n                                                Text(recipe.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n                                            }\n                                            TextButton(\n                                                onClick = { onAction(NutritionAction.UseRecipe(recipe)) },\n                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)\n                                            ) {\n                                                Text(stringResource(R.string.use_food))\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        } else {\n                            Text("No recipes yet. Create one to get started!", style = MaterialTheme.typography.bodySmall)\n                        }\n                    }\n                }
+                                            Text(recipe.name, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                "${totalCalories.roundToInt()} kcal | P ${totalProtein.roundToInt()}g | C ${totalCarbs.roundToInt()}g | F ${totalFat.roundToInt()}g | Fiber ${totalFiber.roundToInt()}g | Sugar ${totalSugar.roundToInt()}g",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(stringResource(R.string.ingredients_count, recipe.ingredients.size), style = MaterialTheme.typography.bodySmall)
+                                            if (recipe.notes.isNotBlank()) {
+                                                Text(recipe.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                TextButton(
+                                                    onClick = { onAction(NutritionAction.UseRecipe(recipe)) },
+                                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                                ) {
+                                                    Text(stringResource(R.string.use_food))
+                                                }
+                                                TextButton(
+                                                    onClick = { onAction(NutritionAction.EditRecipe(recipe)) },
+                                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                                ) {
+                                                    Text(stringResource(R.string.edit))
+                                                }
+                                                TextButton(
+                                                    onClick = { onAction(NutritionAction.RequestDeleteRecipe(recipe)) },
+                                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                                ) {
+                                                    Text(stringResource(R.string.delete))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(stringResource(R.string.no_recipes_yet), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
             }
 
             if (lookupTab == LookupTab.NAME || lookupTab == LookupTab.BARCODE) {
@@ -850,6 +908,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                                     FoodSource.FATSECRET -> stringResource(R.string.source_fatsecret)
                                     FoodSource.OPENFOODFACTS -> stringResource(R.string.source_openfoodfacts)
                                     FoodSource.MANUAL -> stringResource(R.string.source_manual)
+                                    FoodSource.RECIPE -> "Recipe"
                                 }
                                 val sourceAndBrand = if (food.brand.isNotBlank()) "$sourceLabel - ${food.brand}" else sourceLabel
                                 Text(sourceAndBrand, style = MaterialTheme.typography.labelSmall)
@@ -899,13 +958,32 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
     if (state.showAddRecipeDialog) {
         RecipeBuilderDialog(state = state, onAction = onAction)
     }
+
+    if (state.showDeleteRecipeDialog && state.recipePendingDelete != null) {
+        AlertDialog(
+            onDismissRequest = { onAction(NutritionAction.CancelDeleteRecipe) },
+            title = { Text(stringResource(R.string.delete_recipe)) },
+            text = { Text(stringResource(R.string.confirm_delete_recipe, state.recipePendingDelete.name)) },
+            confirmButton = {
+                Button(onClick = { onAction(NutritionAction.ConfirmDeleteRecipe) }) {
+                    Text(stringResource(R.string.yes_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(NutritionAction.CancelDeleteRecipe) }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAction) -> Unit) {
     AlertDialog(
+        modifier = Modifier.fillMaxWidth(0.95f),
         onDismissRequest = { onAction(NutritionAction.DismissAddRecipeDialog) },
-        title = { Text("Create Recipe") },
+        title = { Text(stringResource(R.string.create_recipe)) },
         text = {
             Column(
                 modifier = Modifier
@@ -916,19 +994,19 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
                 OutlinedTextField(
                     value = state.recipeNameInput,
                     onValueChange = { onAction(NutritionAction.UpdateRecipeName(it)) },
-                    label = { Text("Recipe Name") },
+                    label = { Text(stringResource(R.string.recipe_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = state.recipeNotesInput,
                     onValueChange = { onAction(NutritionAction.UpdateRecipeNotes(it)) },
-                    label = { Text("Notes (optional)") },
+                    label = { Text(stringResource(R.string.notes_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2
                 )
                 
-                Text("Ingredients (${state.recipeIngredientsInput.size})", style = MaterialTheme.typography.titleSmall)
-                
+                Text(stringResource(R.string.ingredients_title, state.recipeIngredientsInput.size), style = MaterialTheme.typography.titleSmall)
+
                 if (state.recipeIngredientsInput.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                         state.recipeIngredientsInput.forEachIndexed { index, ingredient ->
@@ -936,41 +1014,228 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(ingredient.foodDescription, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-                                    Text("${ingredient.gramsUsed.roundToInt()}g", style = MaterialTheme.typography.bodySmall)
+                                    Text("${ingredient.gramsUsed.roundToInt()}g | ${ingredient.caloriesPer100g.roundToInt()} kcal/100g", style = MaterialTheme.typography.bodySmall)
+                                    Text("P ${ingredient.proteinPer100g.roundToInt()}g | C ${ingredient.carbsPer100g.roundToInt()}g | F ${ingredient.fatPer100g.roundToInt()}g", style = MaterialTheme.typography.bodySmall)
                                 }
-                                IconButton(onClick = { onAction(NutritionAction.RemoveRecipeIngredient(index)) }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(onClick = { onAction(NutritionAction.EditRecipeIngredientGrams(index)) }, modifier = Modifier.height(32.dp)) {
+                                        Text("Edit", style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    IconButton(onClick = { onAction(NutritionAction.RemoveRecipeIngredient(index)) }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Filled.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                
-                Button(
-                    onClick = { onAction(NutritionAction.UpdateAddGrams("100")) },
-                    modifier = Modifier.fillMaxWidth()
+
+                Text("Add Ingredient", style = MaterialTheme.typography.titleSmall)
+
+                TabRow(
+                    selectedTabIndex = when (state.recipeLookupTab) {
+                        RecipeLookupTab.NAME -> 0
+                        RecipeLookupTab.BARCODE -> 1
+                        RecipeLookupTab.MANUAL -> 2
+                    }
                 ) {
-                    Text("Add Ingredient from History")
+                    Tab(
+                        selected = state.recipeLookupTab == RecipeLookupTab.NAME,
+                        onClick = { onAction(NutritionAction.UpdateRecipeLookupTab(RecipeLookupTab.NAME)) },
+                        icon = { Icon(Icons.Filled.Search, contentDescription = "Search by name") }
+                    )
+                    Tab(
+                        selected = state.recipeLookupTab == RecipeLookupTab.BARCODE,
+                        onClick = { onAction(NutritionAction.UpdateRecipeLookupTab(RecipeLookupTab.BARCODE)) },
+                        icon = { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan barcode") }
+                    )
+                    Tab(
+                        selected = state.recipeLookupTab == RecipeLookupTab.MANUAL,
+                        onClick = { onAction(NutritionAction.UpdateRecipeLookupTab(RecipeLookupTab.MANUAL)) },
+                        icon = { Icon(Icons.Filled.AddCircle, contentDescription = "Add manually") }
+                    )
+                }
+
+                when (state.recipeLookupTab) {
+                    RecipeLookupTab.NAME -> {
+                        OutlinedTextField(
+                            value = state.recipeIngredientQuery,
+                            onValueChange = { onAction(NutritionAction.UpdateRecipeIngredientQuery(it)) },
+                            label = { Text(stringResource(R.string.ingredient_search)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Button(onClick = { onAction(NutritionAction.SearchRecipeIngredients) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.search))
+                        }
+                    }
+                    RecipeLookupTab.BARCODE -> {
+                        OutlinedTextField(
+                            value = state.recipeIngredientBarcodeInput,
+                            onValueChange = { onAction(NutritionAction.UpdateRecipeIngredientBarcode(it)) },
+                            label = { Text(stringResource(R.string.barcode_label)) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Button(onClick = { onAction(NutritionAction.LookupRecipeIngredientBarcode) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.scan_barcode))
+                        }
+                    }
+                    RecipeLookupTab.MANUAL -> {
+                        OutlinedTextField(
+                            value = state.manualRecipeName,
+                            onValueChange = { onAction(NutritionAction.UpdateManualRecipeName(it)) },
+                            label = { Text("Food name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = state.manualRecipeBrand,
+                            onValueChange = { onAction(NutritionAction.UpdateManualRecipeBrand(it)) },
+                            label = { Text("Brand (optional)") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = state.manualRecipeCalories,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeCalories(it)) },
+                                label = { Text("kcal") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = state.manualRecipeProtein,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeProtein(it)) },
+                                label = { Text("Protein g") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = state.manualRecipeCarbs,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeCarbs(it)) },
+                                label = { Text("Carbs g") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = state.manualRecipeFat,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeFat(it)) },
+                                label = { Text("Fat g") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = state.manualRecipeFiber,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeFiber(it)) },
+                                label = { Text("Fiber g") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = state.manualRecipeSugar,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeSugar(it)) },
+                                label = { Text("Sugar g") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = state.manualRecipeSodium,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeSodium(it)) },
+                                label = { Text("Sodium mg") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = state.manualRecipePotassium,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipePotassium(it)) },
+                                label = { Text("Potassium mg") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = state.manualRecipeCalcium,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeCalcium(it)) },
+                                label = { Text("Calcium mg") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = state.manualRecipeIron,
+                                onValueChange = { onAction(NutritionAction.UpdateManualRecipeIron(it)) },
+                                label = { Text("Iron mg") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Button(onClick = { onAction(NutritionAction.AddManualRecipeIngredient) }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Add Manual Ingredient")
+                        }
+                    }
+                }
+
+                if (state.searchResults.isNotEmpty()) {
+                    Text("Search results", style = MaterialTheme.typography.titleSmall)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                        state.searchResults.take(6).forEach { food ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(food.description, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                    Text("${food.caloriesPer100g.roundToInt()} kcal / 100g", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Button(onClick = { onAction(NutritionAction.ShowRecipeIngredientGramsDialog(food)) }) {
+                                    Text("Add")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
             Button(onClick = { onAction(NutritionAction.SaveRecipe) }) {
-                Text("Save Recipe")
+                Text(stringResource(R.string.save_recipe))
             }
         },
         dismissButton = {
             TextButton(onClick = { onAction(NutritionAction.DismissAddRecipeDialog) }) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
-        },
-        modifier = Modifier.fillMaxWidth(0.9f)
+        }
     )
+
+    if (state.showRecipeIngredientGramsDialog && state.recipeIngredientPendingFood != null) {
+        AlertDialog(
+            onDismissRequest = { onAction(NutritionAction.DismissRecipeIngredientGramsDialog) },
+            title = { Text("Add ${state.recipeIngredientPendingFood.description}") },
+            text = {
+                OutlinedTextField(
+                    value = state.recipeIngredientGramsInput,
+                    onValueChange = { onAction(NutritionAction.UpdateRecipeIngredientGrams(it)) },
+                    label = { Text("Grams") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = { onAction(NutritionAction.ConfirmRecipeIngredientGrams(state.recipeIngredientGramsInput)) }) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onAction(NutritionAction.DismissRecipeIngredientGramsDialog) }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -1323,7 +1588,17 @@ data class RecipeIngredient(
     val foodId: String,
     val foodSource: FoodSource,
     val foodDescription: String,
-    val gramsUsed: Double
+    val gramsUsed: Double,
+    val caloriesPer100g: Double = 0.0,
+    val proteinPer100g: Double = 0.0,
+    val carbsPer100g: Double = 0.0,
+    val fatPer100g: Double = 0.0,
+    val fiberPer100g: Double = 0.0,
+    val sugarPer100g: Double = 0.0,
+    val sodiumMgPer100g: Double = 0.0,
+    val potassiumMgPer100g: Double = 0.0,
+    val calciumMgPer100g: Double = 0.0,
+    val ironMgPer100g: Double = 0.0
 )
 
 data class Recipe(
@@ -1405,9 +1680,30 @@ data class NutritionUiState(
     val recipeNotesInput: String = "",
     val recipeIngredientsInput: List<RecipeIngredient> = emptyList(),
     val recipeIngredientQuery: String = "",
+    val recipeIngredientBarcodeInput: String = "",
+    val customRecipeIngredientDescriptionInput: String = "",
+    val recipeIngredientPendingFood: FoodItem? = null,
+    val showRecipeIngredientGramsDialog: Boolean = false,
+    val showDeleteRecipeDialog: Boolean = false,
+    val recipePendingDelete: Recipe? = null,
     val showAddRecipeDialog: Boolean = false,
     val showNewIngredientSearch: Boolean = false,
-    val recipeIngredientGramsInput: String = "100"
+    val recipeIngredientGramsInput: String = "100",
+    val recipeBeingEditedId: String? = null,
+    val recipeLookupTab: RecipeLookupTab = RecipeLookupTab.NAME,
+    val manualRecipeName: String = "",
+    val manualRecipeBrand: String = "",
+    val manualRecipeCalories: String = "",
+    val manualRecipeProtein: String = "",
+    val manualRecipeCarbs: String = "",
+    val manualRecipeFat: String = "",
+    val manualRecipeFiber: String = "",
+    val manualRecipeSugar: String = "",
+    val manualRecipeSodium: String = "",
+    val manualRecipePotassium: String = "",
+    val manualRecipeCalcium: String = "",
+    val manualRecipeIron: String = "",
+    val editingRecipeIngredientIndex: Int? = null
 )
 
 sealed interface NutritionAction {
@@ -1440,14 +1736,41 @@ sealed interface NutritionAction {
     data class ImportBackup(val uri: Uri) : NutritionAction
     data object ShowAddRecipeDialog : NutritionAction
     data object DismissAddRecipeDialog : NutritionAction
+    data class EditRecipe(val recipe: Recipe) : NutritionAction
     data class UpdateRecipeName(val value: String) : NutritionAction
     data class UpdateRecipeNotes(val value: String) : NutritionAction
     data class UpdateRecipeIngredientQuery(val value: String) : NutritionAction
+    data class UpdateRecipeIngredientBarcode(val value: String) : NutritionAction
     data class UpdateRecipeIngredientGrams(val value: String) : NutritionAction
+    data class UpdateCustomRecipeIngredientDescription(val value: String) : NutritionAction
+    data class ShowRecipeIngredientGramsDialog(val food: FoodItem) : NutritionAction
+    data object DismissRecipeIngredientGramsDialog : NutritionAction
+    data class ConfirmRecipeIngredientGrams(val grams: String) : NutritionAction
     data class AddRecipeIngredient(val food: FoodItem) : NutritionAction
+    data class AddCustomRecipeIngredient(val description: String) : NutritionAction
     data class RemoveRecipeIngredient(val index: Int) : NutritionAction
+    data object SearchRecipeIngredients : NutritionAction
+    data object LookupRecipeIngredientBarcode : NutritionAction
+    data class RequestDeleteRecipe(val recipe: Recipe) : NutritionAction
+    data object ConfirmDeleteRecipe : NutritionAction
+    data object CancelDeleteRecipe : NutritionAction
     data object SaveRecipe : NutritionAction
     data class UseRecipe(val recipe: Recipe) : NutritionAction
+    data class UpdateRecipeLookupTab(val tab: RecipeLookupTab) : NutritionAction
+    data class UpdateManualRecipeName(val value: String) : NutritionAction
+    data class UpdateManualRecipeBrand(val value: String) : NutritionAction
+    data class UpdateManualRecipeCalories(val value: String) : NutritionAction
+    data class UpdateManualRecipeProtein(val value: String) : NutritionAction
+    data class UpdateManualRecipeCarbs(val value: String) : NutritionAction
+    data class UpdateManualRecipeFat(val value: String) : NutritionAction
+    data class UpdateManualRecipeFiber(val value: String) : NutritionAction
+    data class UpdateManualRecipeSugar(val value: String) : NutritionAction
+    data class UpdateManualRecipeSodium(val value: String) : NutritionAction
+    data class UpdateManualRecipePotassium(val value: String) : NutritionAction
+    data class UpdateManualRecipeCalcium(val value: String) : NutritionAction
+    data class UpdateManualRecipeIron(val value: String) : NutritionAction
+    data object AddManualRecipeIngredient : NutritionAction
+    data class EditRecipeIngredientGrams(val index: Int) : NutritionAction
 }
 class NutritionViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = NutritionRepository(application.applicationContext)
@@ -1487,16 +1810,131 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             is NutritionAction.RemoveEntry -> removeEntry(action.entryId)
             is NutritionAction.ExportBackup -> exportBackup(action.uri)
             is NutritionAction.ImportBackup -> importBackup(action.uri)
-            NutritionAction.ShowAddRecipeDialog -> uiState = uiState.copy(showAddRecipeDialog = true, recipeNameInput = "", recipeNotesInput = "", recipeIngredientsInput = emptyList(), recipeIngredientQuery = "")
-            NutritionAction.DismissAddRecipeDialog -> uiState = uiState.copy(showAddRecipeDialog = false, recipeNameInput = "", recipeNotesInput = "", recipeIngredientsInput = emptyList())
+            NutritionAction.ShowAddRecipeDialog -> uiState = uiState.copy(
+                showAddRecipeDialog = true,
+                recipeNameInput = "",
+                recipeNotesInput = "",
+                recipeIngredientsInput = emptyList(),
+                recipeIngredientQuery = "",
+                recipeBeingEditedId = null,
+                recipeLookupTab = RecipeLookupTab.NAME,
+                manualRecipeName = "",
+                manualRecipeBrand = "",
+                manualRecipeCalories = "",
+                manualRecipeProtein = "",
+                manualRecipeCarbs = "",
+                manualRecipeFat = "",
+                manualRecipeFiber = "",
+                manualRecipeSugar = "",
+                manualRecipeSodium = "",
+                manualRecipePotassium = "",
+                manualRecipeCalcium = "",
+                manualRecipeIron = "",
+                editingRecipeIngredientIndex = null
+            )
+            NutritionAction.DismissAddRecipeDialog -> uiState = uiState.copy(
+                showAddRecipeDialog = false,
+                recipeNameInput = "",
+                recipeNotesInput = "",
+                recipeIngredientsInput = emptyList(),
+                recipeBeingEditedId = null,
+                recipeLookupTab = RecipeLookupTab.NAME,
+                manualRecipeName = "",
+                manualRecipeBrand = "",
+                manualRecipeCalories = "",
+                manualRecipeProtein = "",
+                manualRecipeCarbs = "",
+                manualRecipeFat = "",
+                manualRecipeFiber = "",
+                manualRecipeSugar = "",
+                manualRecipeSodium = "",
+                manualRecipePotassium = "",
+                manualRecipeCalcium = "",
+                manualRecipeIron = "",
+                editingRecipeIngredientIndex = null
+            )
+            is NutritionAction.EditRecipe -> uiState = uiState.copy(
+                showAddRecipeDialog = true,
+                recipeNameInput = action.recipe.name,
+                recipeNotesInput = action.recipe.notes,
+                recipeIngredientsInput = action.recipe.ingredients,
+                recipeIngredientQuery = "",
+                recipeBeingEditedId = action.recipe.id,
+                recipeLookupTab = RecipeLookupTab.NAME,
+                manualRecipeName = "",
+                manualRecipeBrand = "",
+                manualRecipeCalories = "",
+                manualRecipeProtein = "",
+                manualRecipeCarbs = "",
+                manualRecipeFat = "",
+                manualRecipeFiber = "",
+                manualRecipeSugar = "",
+                manualRecipeSodium = "",
+                manualRecipePotassium = "",
+                manualRecipeCalcium = "",
+                manualRecipeIron = "",
+                editingRecipeIngredientIndex = null
+            )
             is NutritionAction.UpdateRecipeName -> uiState = uiState.copy(recipeNameInput = action.value)
             is NutritionAction.UpdateRecipeNotes -> uiState = uiState.copy(recipeNotesInput = action.value)
             is NutritionAction.UpdateRecipeIngredientQuery -> uiState = uiState.copy(recipeIngredientQuery = action.value)
+            is NutritionAction.UpdateRecipeIngredientBarcode -> uiState = uiState.copy(recipeIngredientBarcodeInput = action.value)
             is NutritionAction.UpdateRecipeIngredientGrams -> uiState = uiState.copy(recipeIngredientGramsInput = action.value)
+            is NutritionAction.UpdateCustomRecipeIngredientDescription -> uiState = uiState.copy(customRecipeIngredientDescriptionInput = action.value)
+            is NutritionAction.ShowRecipeIngredientGramsDialog -> uiState = uiState.copy(recipeIngredientPendingFood = action.food, showRecipeIngredientGramsDialog = true, recipeIngredientGramsInput = "100")
+            NutritionAction.DismissRecipeIngredientGramsDialog -> uiState = uiState.copy(recipeIngredientPendingFood = null, showRecipeIngredientGramsDialog = false, recipeIngredientGramsInput = "100", editingRecipeIngredientIndex = null)
+            is NutritionAction.ConfirmRecipeIngredientGrams -> confirmAddRecipeIngredient(action.grams)
             is NutritionAction.AddRecipeIngredient -> addRecipeIngredient(action.food)
+            is NutritionAction.AddCustomRecipeIngredient -> addCustomRecipeIngredient(action.description)
             is NutritionAction.RemoveRecipeIngredient -> uiState = uiState.copy(recipeIngredientsInput = uiState.recipeIngredientsInput.filterIndexed { i, _ -> i != action.index })
+            NutritionAction.SearchRecipeIngredients -> searchRecipeIngredients()
+            NutritionAction.LookupRecipeIngredientBarcode -> lookupRecipeIngredientBarcode()
+            is NutritionAction.RequestDeleteRecipe -> uiState = uiState.copy(recipePendingDelete = action.recipe, showDeleteRecipeDialog = true)
+            NutritionAction.CancelDeleteRecipe -> uiState = uiState.copy(recipePendingDelete = null, showDeleteRecipeDialog = false)
+            NutritionAction.ConfirmDeleteRecipe -> deleteRecipe()
             NutritionAction.SaveRecipe -> saveRecipe()
-            is NutritionAction.UseRecipe -> uiState = uiState.copy(foodToAdd = FoodItem(id = action.recipe.id, source = FoodSource.RECIPE, description = action.recipe.name, brand = "", caloriesPer100g = 0.0, proteinPer100g = 0.0, carbsPer100g = 0.0, fatPer100g = 0.0), addFoodGramsInput = "100")
+            is NutritionAction.UseRecipe -> useRecipe(action.recipe)
+            is NutritionAction.UpdateRecipeLookupTab -> {
+                val newState = uiState.copy(recipeLookupTab = action.tab)
+                uiState = if (action.tab == RecipeLookupTab.MANUAL) newState.copy(searchResults = emptyList()) else newState
+            }
+            is NutritionAction.UpdateManualRecipeName -> uiState = uiState.copy(manualRecipeName = action.value)
+            is NutritionAction.UpdateManualRecipeBrand -> uiState = uiState.copy(manualRecipeBrand = action.value)
+            is NutritionAction.UpdateManualRecipeCalories -> uiState = uiState.copy(manualRecipeCalories = action.value)
+            is NutritionAction.UpdateManualRecipeProtein -> uiState = uiState.copy(manualRecipeProtein = action.value)
+            is NutritionAction.UpdateManualRecipeCarbs -> uiState = uiState.copy(manualRecipeCarbs = action.value)
+            is NutritionAction.UpdateManualRecipeFat -> uiState = uiState.copy(manualRecipeFat = action.value)
+            is NutritionAction.UpdateManualRecipeFiber -> uiState = uiState.copy(manualRecipeFiber = action.value)
+            is NutritionAction.UpdateManualRecipeSugar -> uiState = uiState.copy(manualRecipeSugar = action.value)
+            is NutritionAction.UpdateManualRecipeSodium -> uiState = uiState.copy(manualRecipeSodium = action.value)
+            is NutritionAction.UpdateManualRecipePotassium -> uiState = uiState.copy(manualRecipePotassium = action.value)
+            is NutritionAction.UpdateManualRecipeCalcium -> uiState = uiState.copy(manualRecipeCalcium = action.value)
+            is NutritionAction.UpdateManualRecipeIron -> uiState = uiState.copy(manualRecipeIron = action.value)
+            NutritionAction.AddManualRecipeIngredient -> addManualRecipeIngredient()
+            is NutritionAction.EditRecipeIngredientGrams -> {
+                val ingredient = uiState.recipeIngredientsInput[action.index]
+                uiState = uiState.copy(
+                    recipeIngredientPendingFood = FoodItem(
+                        id = ingredient.foodId,
+                        source = ingredient.foodSource,
+                        description = ingredient.foodDescription,
+                        brand = "",
+                        caloriesPer100g = ingredient.caloriesPer100g,
+                        proteinPer100g = ingredient.proteinPer100g,
+                        carbsPer100g = ingredient.carbsPer100g,
+                        fatPer100g = ingredient.fatPer100g,
+                        fiberPer100g = ingredient.fiberPer100g,
+                        sugarPer100g = ingredient.sugarPer100g,
+                        sodiumMgPer100g = ingredient.sodiumMgPer100g,
+                        potassiumMgPer100g = ingredient.potassiumMgPer100g,
+                        calciumMgPer100g = ingredient.calciumMgPer100g,
+                        ironMgPer100g = ingredient.ironMgPer100g
+                    ),
+                    showRecipeIngredientGramsDialog = true,
+                    recipeIngredientGramsInput = ingredient.gramsUsed.toString(),
+                    editingRecipeIngredientIndex = action.index
+                )
+            }
         }
     }
 
@@ -1624,6 +2062,60 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    private fun searchRecipeIngredients() {
+        if (uiState.recipeIngredientQuery.isBlank()) {
+            uiState = uiState.copy(message = "Type an ingredient name first.")
+            return
+        }
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoading = true)
+            val query = uiState.recipeIngredientQuery.trim()
+            val cached = repo.searchCachedFoodsByQuery(query)
+            if (cached.size >= 8) {
+                uiState = uiState.copy(
+                    searchResults = cached,
+                    isLoading = false,
+                    message = "Showing cached results for recipe ingredient."
+                )
+                return@launch
+            }
+
+            if (BuildConfig.USDA_API_KEY.isBlank()) {
+                if (cached.isNotEmpty()) {
+                    uiState = uiState.copy(
+                        searchResults = cached,
+                        isLoading = false,
+                        message = "USDA API key missing. Showing cached results for recipe ingredient."
+                    )
+                } else {
+                    uiState = uiState.copy(
+                        isLoading = false,
+                        message = "USDA_API_KEY is missing and no cached matches found."
+                    )
+                }
+                return@launch
+            }
+
+            runCatching { repo.searchUsdaFoods(query, BuildConfig.USDA_API_KEY) }
+                .onSuccess { remote ->
+                    val merged = (cached + remote).distinctBy { "${it.source}:${it.id}" }
+                    uiState = uiState.copy(searchResults = merged, isLoading = false)
+                }
+                .onFailure {
+                    val fallback = if (cached.isNotEmpty()) cached else uiState.searchResults
+                    uiState = uiState.copy(
+                        searchResults = fallback,
+                        isLoading = false,
+                        message = if (cached.isNotEmpty()) {
+                            "USDA search failed. Showing cached results for recipe ingredient."
+                        } else {
+                            "USDA search failed for recipe ingredient."
+                        }
+                    )
+                }
+        }
+    }
+
     private fun lookupBarcode() {
         val barcode = uiState.barcodeInput.filter { it.isDigit() }
         if (barcode.length < 8) {
@@ -1647,6 +2139,61 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             }
         }
+    }
+
+    private fun lookupRecipeIngredientBarcode() {
+        val barcode = uiState.recipeIngredientBarcodeInput.filter { it.isDigit() }
+        if (barcode.length < 8) {
+            uiState = uiState.copy(message = "Enter a valid barcode number for recipe ingredient.")
+            return
+        }
+        viewModelScope.launch {
+            uiState = uiState.copy(isLoadingBarcode = true)
+            runCatching {
+                repo.lookupOpenFoodFactsBarcode(barcode)
+            }.onSuccess { food ->
+                uiState = uiState.copy(
+                    searchResults = listOf(food),
+                    isLoadingBarcode = false,
+                    message = "Recipe ingredient barcode matched: ${food.description}"
+                )
+            }.onFailure {
+                uiState = uiState.copy(
+                    isLoadingBarcode = false,
+                    message = "OpenFoodFacts lookup failed for recipe ingredient: ${(it.message ?: "unknown error").take(180)}"
+                )
+            }
+        }
+    }
+
+    private fun addCustomRecipeIngredient(description: String) {
+        val grams = uiState.recipeIngredientGramsInput.toDoubleOrNull()
+        if (description.isBlank()) {
+            uiState = uiState.copy(message = "Enter a valid ingredient name to add manually.")
+            return
+        }
+        if (grams == null || grams <= 0.0) {
+            uiState = uiState.copy(message = "Enter a valid grams amount for ingredient.")
+            return
+        }
+
+        val ingredient = RecipeIngredient(
+            foodId = "custom-${System.currentTimeMillis()}",
+            foodSource = FoodSource.MANUAL,
+            foodDescription = description.trim(),
+            gramsUsed = grams,
+            caloriesPer100g = 0.0,
+            proteinPer100g = 0.0,
+            carbsPer100g = 0.0,
+            fatPer100g = 0.0
+        )
+        val updated = uiState.recipeIngredientsInput + ingredient
+        uiState = uiState.copy(
+            recipeIngredientsInput = updated,
+            customRecipeIngredientDescriptionInput = "",
+            recipeIngredientGramsInput = "100",
+            message = "Added custom ingredient '${description.trim()}' to recipe."
+        )
     }
 
     private fun confirmAddFood(food: FoodItem, gramsInput: String) {
@@ -1801,21 +2348,132 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             uiState = uiState.copy(message = "Enter a valid grams amount for ingredient.")
             return
         }
-        
+
         val ingredient = RecipeIngredient(
             foodId = food.id,
             foodSource = food.source,
             foodDescription = food.description,
-            gramsUsed = grams
+            gramsUsed = grams,
+            caloriesPer100g = food.caloriesPer100g,
+            proteinPer100g = food.proteinPer100g,
+            carbsPer100g = food.carbsPer100g,
+            fatPer100g = food.fatPer100g,
+            fiberPer100g = food.fiberPer100g,
+            sugarPer100g = food.sugarPer100g,
+            sodiumMgPer100g = food.sodiumMgPer100g,
+            potassiumMgPer100g = food.potassiumMgPer100g,
+            calciumMgPer100g = food.calciumMgPer100g,
+            ironMgPer100g = food.ironMgPer100g
         )
-        
+
         val updated = uiState.recipeIngredientsInput + ingredient
         uiState = uiState.copy(
             recipeIngredientsInput = updated,
             recipeIngredientQuery = "",
-            recipeIngredientGramsInput = "100",
+            recipeIngredientBarcodeInput = "",
             showNewIngredientSearch = false,
+            recipeIngredientPendingFood = null,
+            showRecipeIngredientGramsDialog = false,
+            recipeIngredientGramsInput = "100",
             message = "Added ${food.description} to recipe."
+        )
+    }
+
+    private fun confirmAddRecipeIngredient(gramsInput: String) {
+        val food = uiState.recipeIngredientPendingFood
+        if (food == null) {
+            uiState = uiState.copy(message = "No ingredient selected to add.")
+            return
+        }
+
+        val grams = gramsInput.toDoubleOrNull()
+        if (grams == null || grams <= 0.0) {
+            uiState = uiState.copy(message = "Enter a valid grams amount for ingredient.")
+            return
+        }
+
+        val ingredient = RecipeIngredient(
+            foodId = food.id,
+            foodSource = food.source,
+            foodDescription = food.description,
+            gramsUsed = grams,
+            caloriesPer100g = food.caloriesPer100g,
+            proteinPer100g = food.proteinPer100g,
+            carbsPer100g = food.carbsPer100g,
+            fatPer100g = food.fatPer100g,
+            fiberPer100g = food.fiberPer100g,
+            sugarPer100g = food.sugarPer100g,
+            sodiumMgPer100g = food.sodiumMgPer100g,
+            potassiumMgPer100g = food.potassiumMgPer100g,
+            calciumMgPer100g = food.calciumMgPer100g,
+            ironMgPer100g = food.ironMgPer100g
+        )
+
+        if (uiState.editingRecipeIngredientIndex != null) {
+            // update existing
+            val index = uiState.editingRecipeIngredientIndex!!
+            val updated = uiState.recipeIngredientsInput.toMutableList()
+            updated[index] = ingredient
+            uiState = uiState.copy(
+                recipeIngredientsInput = updated,
+                recipeIngredientPendingFood = null,
+                showRecipeIngredientGramsDialog = false,
+                recipeIngredientGramsInput = "100",
+                editingRecipeIngredientIndex = null,
+                message = "Updated grams for ${food.description} in recipe."
+            )
+        } else {
+            // add new
+            val updated = uiState.recipeIngredientsInput + ingredient
+            uiState = uiState.copy(
+                recipeIngredientsInput = updated,
+                recipeIngredientPendingFood = null,
+                showRecipeIngredientGramsDialog = false,
+                recipeIngredientGramsInput = "100",
+                message = "Added ${food.description} to recipe."
+            )
+        }
+    }
+
+    private fun addManualRecipeIngredient() {
+        val name = uiState.manualRecipeName.trim()
+        if (name.isBlank()) {
+            uiState = uiState.copy(message = "Enter a name for the manual ingredient.")
+            return
+        }
+
+        val calories = uiState.manualRecipeCalories.toDoubleOrNull() ?: 0.0
+        val protein = uiState.manualRecipeProtein.toDoubleOrNull() ?: 0.0
+        val carbs = uiState.manualRecipeCarbs.toDoubleOrNull() ?: 0.0
+        val fat = uiState.manualRecipeFat.toDoubleOrNull() ?: 0.0
+        val fiber = uiState.manualRecipeFiber.toDoubleOrNull() ?: 0.0
+        val sugar = uiState.manualRecipeSugar.toDoubleOrNull() ?: 0.0
+        val sodium = uiState.manualRecipeSodium.toDoubleOrNull() ?: 0.0
+        val potassium = uiState.manualRecipePotassium.toDoubleOrNull() ?: 0.0
+        val calcium = uiState.manualRecipeCalcium.toDoubleOrNull() ?: 0.0
+        val iron = uiState.manualRecipeIron.toDoubleOrNull() ?: 0.0
+
+        val food = FoodItem(
+            id = "manual-${System.currentTimeMillis()}",
+            source = FoodSource.MANUAL,
+            description = name,
+            brand = uiState.manualRecipeBrand.trim(),
+            caloriesPer100g = calories,
+            proteinPer100g = protein,
+            carbsPer100g = carbs,
+            fatPer100g = fat,
+            fiberPer100g = fiber,
+            sugarPer100g = sugar,
+            sodiumMgPer100g = sodium,
+            potassiumMgPer100g = potassium,
+            calciumMgPer100g = calcium,
+            ironMgPer100g = iron
+        )
+
+        uiState = uiState.copy(
+            recipeIngredientPendingFood = food,
+            showRecipeIngredientGramsDialog = true,
+            recipeIngredientGramsInput = "100"
         )
     }
 
@@ -1832,24 +2490,58 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
         }
         
         viewModelScope.launch {
+            val isEditing = uiState.recipeBeingEditedId != null
             val recipe = Recipe(
-                id = "recipe-${System.currentTimeMillis()}",
+                id = uiState.recipeBeingEditedId ?: "recipe-${System.currentTimeMillis()}",
                 name = name,
                 ingredients = uiState.recipeIngredientsInput,
                 createdAtEpochMs = System.currentTimeMillis(),
                 notes = uiState.recipeNotesInput.trim()
             )
-            
-            val allRecipes = (uiState.recipes + recipe).toMutableList()
-            repo.saveRecipes(allRecipes)
-            
+
+            val existing = uiState.recipes.toMutableList()
+            if (isEditing) {
+                val index = existing.indexOfFirst { it.id == uiState.recipeBeingEditedId }
+                if (index >= 0) existing[index] = recipe else existing.add(recipe)
+            } else {
+                existing.add(recipe)
+            }
+
+            repo.saveRecipes(existing)
+
             uiState = uiState.copy(
-                recipes = allRecipes,
+                recipes = existing,
                 showAddRecipeDialog = false,
+                recipeBeingEditedId = null,
                 recipeNameInput = "",
                 recipeNotesInput = "",
                 recipeIngredientsInput = emptyList(),
-                message = "Recipe '$name' saved successfully."
+                message = if (isEditing) "Recipe '$name' updated successfully." else "Recipe '$name' saved successfully."
+            )
+        }
+    }
+
+    private fun deleteRecipe() {
+        val toDelete = uiState.recipePendingDelete ?: return
+        val updated = uiState.recipes.filterNot { it.id == toDelete.id }
+        viewModelScope.launch {
+            repo.saveRecipes(updated)
+            uiState = uiState.copy(
+                recipes = updated,
+                recipePendingDelete = null,
+                showDeleteRecipeDialog = false,
+                message = "Recipe '${toDelete.name}' deleted."
+            )
+        }
+    }
+
+    private fun useRecipe(recipe: Recipe) {
+        viewModelScope.launch {
+            val resolved = repo.resolveRecipeToFood(recipe)
+            uiState = uiState.copy(
+                foodToAdd = resolved,
+                addFoodGramsInput = "100",
+                message = "Recipe '${recipe.name}' ready to add."
             )
         }
     }
@@ -2152,6 +2844,16 @@ class NutritionRepository(private val context: Context) {
                         .put("foodSource", ing.foodSource.name)
                         .put("foodDescription", ing.foodDescription)
                         .put("gramsUsed", ing.gramsUsed)
+                        .put("caloriesPer100g", ing.caloriesPer100g)
+                        .put("proteinPer100g", ing.proteinPer100g)
+                        .put("carbsPer100g", ing.carbsPer100g)
+                        .put("fatPer100g", ing.fatPer100g)
+                        .put("fiberPer100g", ing.fiberPer100g)
+                        .put("sugarPer100g", ing.sugarPer100g)
+                        .put("sodiumMgPer100g", ing.sodiumMgPer100g)
+                        .put("potassiumMgPer100g", ing.potassiumMgPer100g)
+                        .put("calciumMgPer100g", ing.calciumMgPer100g)
+                        .put("ironMgPer100g", ing.ironMgPer100g)
                 )
             }
             arr.put(
@@ -2182,7 +2884,17 @@ class NutritionRepository(private val context: Context) {
                             foodId = ingObj.getString("foodId"),
                             foodSource = source,
                             foodDescription = ingObj.getString("foodDescription"),
-                            gramsUsed = ingObj.getDouble("gramsUsed")
+                            gramsUsed = ingObj.getDouble("gramsUsed"),
+                            caloriesPer100g = ingObj.optDouble("caloriesPer100g", 0.0),
+                            proteinPer100g = ingObj.optDouble("proteinPer100g", 0.0),
+                            carbsPer100g = ingObj.optDouble("carbsPer100g", 0.0),
+                            fatPer100g = ingObj.optDouble("fatPer100g", 0.0),
+                            fiberPer100g = ingObj.optDouble("fiberPer100g", 0.0),
+                            sugarPer100g = ingObj.optDouble("sugarPer100g", 0.0),
+                            sodiumMgPer100g = ingObj.optDouble("sodiumMgPer100g", 0.0),
+                            potassiumMgPer100g = ingObj.optDouble("potassiumMgPer100g", 0.0),
+                            calciumMgPer100g = ingObj.optDouble("calciumMgPer100g", 0.0),
+                            ironMgPer100g = ingObj.optDouble("ironMgPer100g", 0.0)
                         )
                     )
                 }
@@ -2312,19 +3024,37 @@ class NutritionRepository(private val context: Context) {
         
         for (ingredient in recipe.ingredients) {
             val food = cachedFoods[ingredient.foodId to ingredient.foodSource]
-            if (food != null) {
-                val multiplier = ingredient.gramsUsed / 100.0
-                totalCalories += food.caloriesPer100g * multiplier
-                totalProtein += food.proteinPer100g * multiplier
-                totalCarbs += food.carbsPer100g * multiplier
-                totalFat += food.fatPer100g * multiplier
-                totalFiber += food.fiberPer100g * multiplier
-                totalSugar += food.sugarPer100g * multiplier
-                totalSodiumMg += food.sodiumMgPer100g * multiplier
-                totalPotassiumMg += food.potassiumMgPer100g * multiplier
-                totalCalciumMg += food.calciumMgPer100g * multiplier
-                totalIronMg += food.ironMgPer100g * multiplier
+            val sourceMacros = if (food != null) {
+                food
+            } else {
+                FoodItem(
+                    id = ingredient.foodId,
+                    source = ingredient.foodSource,
+                    description = ingredient.foodDescription,
+                    brand = "",
+                    caloriesPer100g = ingredient.caloriesPer100g,
+                    proteinPer100g = ingredient.proteinPer100g,
+                    carbsPer100g = ingredient.carbsPer100g,
+                    fatPer100g = ingredient.fatPer100g,
+                    fiberPer100g = ingredient.fiberPer100g,
+                    sugarPer100g = ingredient.sugarPer100g,
+                    sodiumMgPer100g = ingredient.sodiumMgPer100g,
+                    potassiumMgPer100g = ingredient.potassiumMgPer100g,
+                    calciumMgPer100g = ingredient.calciumMgPer100g,
+                    ironMgPer100g = ingredient.ironMgPer100g
+                )
             }
+            val multiplier = ingredient.gramsUsed / 100.0
+            totalCalories += sourceMacros.caloriesPer100g * multiplier
+            totalProtein += sourceMacros.proteinPer100g * multiplier
+            totalCarbs += sourceMacros.carbsPer100g * multiplier
+            totalFat += sourceMacros.fatPer100g * multiplier
+            totalFiber += sourceMacros.fiberPer100g * multiplier
+            totalSugar += sourceMacros.sugarPer100g * multiplier
+            totalSodiumMg += sourceMacros.sodiumMgPer100g * multiplier
+            totalPotassiumMg += sourceMacros.potassiumMgPer100g * multiplier
+            totalCalciumMg += sourceMacros.calciumMgPer100g * multiplier
+            totalIronMg += sourceMacros.ironMgPer100g * multiplier
         }
         
         // Convert totals to per 100g

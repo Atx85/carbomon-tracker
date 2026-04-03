@@ -117,4 +117,22 @@
     <string name="protein">Protein</string>
     <string name="carbs">Carbs</string>
     <string name="fat">Fat</string>
+    <string name="create_new_recipe">Create New Recipe</string>
+    <string name="my_recipes">My Recipes</string>
+    <string name="ingredients_count">%1$d ingredient(s)</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="no_recipes_yet">No recipes yet. Create one to get started!</string>
+    <string name="delete_recipe">Delete Recipe</string>
+    <string name="confirm_delete_recipe">Are you sure you want to delete \'%1$s\'?</string>
+    <string name="yes_delete">Yes, delete</string>
+    <string name="create_recipe">Create Recipe</string>
+    <string name="recipe_name">Recipe Name</string>
+    <string name="notes_optional">Notes (optional)</string>
+    <string name="ingredients_title">Ingredients (%1$d)</string>
+    <string name="ingredient_search">Ingredient search</string>
+    <string name="scan_barcode">Scan Barcode</string>
+    <string name="kcal_label">kcal</string>
+    <string name="barcode_label">Barcode</string>
+    <string name="save_recipe">Save Recipe</string>
 </resources>
