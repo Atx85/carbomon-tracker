@@ -135,7 +135,8 @@ enum class LookupTab {
     NAME,
     BARCODE,
     MANUAL,
-    HISTORY
+    HISTORY,
+    RECIPES
 }
 
 enum class FoodSource {
@@ -556,6 +557,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                     LookupTab.BARCODE -> 1
                     LookupTab.MANUAL -> 2
                     LookupTab.HISTORY -> 3
+                    LookupTab.RECIPES -> 4
                 }
             ) {
                 Tab(
@@ -577,6 +579,11 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                     selected = lookupTab == LookupTab.HISTORY,
                     onClick = { lookupTab = LookupTab.HISTORY },
                     icon = { Icon(Icons.Filled.History, contentDescription = stringResource(R.string.previously_eaten)) }
+                )
+                Tab(
+                    selected = lookupTab == LookupTab.RECIPES,
+                    onClick = { lookupTab = LookupTab.RECIPES },
+                    icon = { Icon(Icons.Filled.BlenderOutlined, contentDescription = "My Recipes") }
                 )
             }
 
@@ -801,6 +808,27 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                         Text(stringResource(R.string.no_foods_for_day))
                     }
                 }
+                LookupTab.RECIPES -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { onAction(NutritionAction.ShowAddRecipeDialog) }) {
+                            Text("Create New Recipe")
+                        }
+                        if (state.recipes.isNotEmpty()) {
+                            Text("My Recipes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(320.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                state.recipes.forEach { recipe ->
+                                    Card(Modifier.fillMaxWidth()) {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(recipe.name, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)\n                                            Text("${recipe.ingredients.size} ingredient(s)", style = MaterialTheme.typography.bodySmall)\n                                            if (recipe.notes.isNotBlank()) {\n                                                Text(recipe.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)\n                                            }\n                                            TextButton(\n                                                onClick = { onAction(NutritionAction.UseRecipe(recipe)) },\n                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)\n                                            ) {\n                                                Text(stringResource(R.string.use_food))\n                                            }\n                                        }\n                                    }\n                                }\n                            }\n                        } else {\n                            Text("No recipes yet. Create one to get started!", style = MaterialTheme.typography.bodySmall)\n                        }\n                    }\n                }
             }
 
             if (lookupTab == LookupTab.NAME || lookupTab == LookupTab.BARCODE) {
@@ -867,6 +895,82 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
             }
         )
     }
+
+    if (state.showAddRecipeDialog) {
+        RecipeBuilderDialog(state = state, onAction = onAction)
+    }
+}
+
+@Composable
+private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAction) -> Unit) {
+    AlertDialog(
+        onDismissRequest = { onAction(NutritionAction.DismissAddRecipeDialog) },
+        title = { Text("Create Recipe") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.recipeNameInput,
+                    onValueChange = { onAction(NutritionAction.UpdateRecipeName(it)) },
+                    label = { Text("Recipe Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.recipeNotesInput,
+                    onValueChange = { onAction(NutritionAction.UpdateRecipeNotes(it)) },
+                    label = { Text("Notes (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+                
+                Text("Ingredients (${state.recipeIngredientsInput.size})", style = MaterialTheme.typography.titleSmall)
+                
+                if (state.recipeIngredientsInput.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                        state.recipeIngredientsInput.forEachIndexed { index, ingredient ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(ingredient.foodDescription, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                                    Text("${ingredient.gramsUsed.roundToInt()}g", style = MaterialTheme.typography.bodySmall)
+                                }
+                                IconButton(onClick = { onAction(NutritionAction.RemoveRecipeIngredient(index)) }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Button(
+                    onClick = { onAction(NutritionAction.UpdateAddGrams("100")) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Add Ingredient from History")
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onAction(NutritionAction.SaveRecipe) }) {
+                Text("Save Recipe")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onAction(NutritionAction.DismissAddRecipeDialog) }) {
+                Text("Cancel")
+            }
+        },
+        modifier = Modifier.fillMaxWidth(0.9f)
+    )
 }
 
 @Composable
