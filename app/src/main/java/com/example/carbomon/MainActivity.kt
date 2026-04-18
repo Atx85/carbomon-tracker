@@ -106,6 +106,7 @@ import java.nio.charset.StandardCharsets
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.util.Base64
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
@@ -556,12 +557,16 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
         cameraDenied = !granted
         showScanner = granted
     }
-    val previouslyEatenFoods = remember(state.consumedEntries) {
-        state.consumedEntries
-            .asReversed()
-            .distinctBy { "${it.source.name}|${it.foodId}|${it.description.lowercase()}" }
-            .map { it.asFoodItem() }
-            .take(12)
+    val previouslyEatenFoods = remember(state.recentFoods, state.consumedEntries) {
+        if (state.recentFoods.isNotEmpty()) {
+            state.recentFoods.take(100)
+        } else {
+            state.consumedEntries
+                .asReversed()
+                .distinctBy { "${it.source.name}|${it.foodId}|${it.description.lowercase()}" }
+                .map { it.asFoodItem() }
+                .take(100)
+        }
     }
 
     Card(Modifier.fillMaxWidth()) {
@@ -1303,6 +1308,8 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
     }
 }
 
+@ExperimentalGetImage
+@OptIn(ExperimentalGetImage::class)
 @Composable
 private fun BarcodeScannerCard(
     onBarcodeDetected: (String) -> Unit,
@@ -1732,6 +1739,7 @@ data class NutritionUiState(
     val addGramsInput: String = "100",
     val searchResults: List<FoodItem> = emptyList(),
     val consumedEntries: List<ConsumedFoodEntry> = emptyList(),
+    val recentFoods: List<FoodItem> = emptyList(),
     val selectedDate: String = LocalDate.now().toString(),
     val isLoading: Boolean = false,
     val isLoadingBarcode: Boolean = false,
@@ -1872,7 +1880,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             NutritionAction.PreviousWeek -> shiftSelectedDay(-7)
             NutritionAction.NextWeek -> shiftSelectedDay(7)
             NutritionAction.Today -> uiState = uiState.copy(selectedDate = LocalDate.now().toString())
-            is NutritionAction.AddFood -> uiState = uiState.copy(foodToAdd = action.food, addFoodGramsInput = "100")
+            is NutritionAction.AddFood -> prepareFoodForAdd(action.food)
             is NutritionAction.ConfirmAddFood -> confirmAddFood(action.food, action.grams)
             NutritionAction.DismissAddFoodDialog -> uiState = uiState.copy(foodToAdd = null, addFoodGramsInput = "100")
             is NutritionAction.UpdateAddFoodGrams -> uiState = uiState.copy(addFoodGramsInput = action.value)
@@ -2016,6 +2024,15 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
         uiState = uiState.copy(message = null)
     }
 
+    private fun prepareFoodForAdd(food: FoodItem) {
+        uiState = uiState.copy(foodToAdd = food, addFoodGramsInput = "100")
+        if (food.source == FoodSource.MANUAL) {
+            viewModelScope.launch {
+                repo.rememberManualFood(food)
+            }
+        }
+    }
+
     private fun shiftSelectedDay(deltaDays: Long) {
         val current = runCatching { LocalDate.parse(uiState.selectedDate) }.getOrElse { LocalDate.now() }
         uiState = uiState.copy(selectedDate = current.plusDays(deltaDays).toString())
@@ -2029,10 +2046,22 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             val loaded = repo.loadConsumedEntries()
             val enriched = repo.enrichEntriesIfMissingMacros(loaded, BuildConfig.USDA_API_KEY)
             if (enriched != loaded) repo.saveConsumedEntries(enriched)
+            val recentFoods = repo.loadRecentFoods()
+            val recentWithFallback = if (recentFoods.isNotEmpty()) {
+                recentFoods.take(MAX_RECENT_FOODS)
+            } else {
+                enriched
+                    .asReversed()
+                    .distinctBy { "${it.source.name}|${it.foodId}|${it.description.lowercase()}" }
+                    .map { it.asFoodItem() }
+                    .take(MAX_RECENT_FOODS)
+            }
+            if (recentWithFallback != recentFoods) repo.saveRecentFoods(recentWithFallback)
             val recipes = repo.loadRecipes()
             uiState = uiState.copy(
                 profile = profile,
                 consumedEntries = enriched,
+                recentFoods = recentWithFallback,
                 recipes = recipes,
                 selectedDate = LocalDate.now().toString(),
                 weightKgInput = profile?.weightKg?.toString().orEmpty(),
@@ -2279,6 +2308,9 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
 
         viewModelScope.launch {
             val resolvedFood = repo.resolveFoodWithCompleteMacros(food, BuildConfig.USDA_API_KEY)
+            if (resolvedFood.source == FoodSource.MANUAL) {
+                repo.rememberManualFood(resolvedFood)
+            }
             val entry = ConsumedFoodEntry(
                 id = "${resolvedFood.source.name}-${resolvedFood.id}-${System.currentTimeMillis()}",
                 date = uiState.selectedDate,
@@ -2300,8 +2332,10 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             val all = repo.loadConsumedEntries().toMutableList()
             all.add(entry)
             repo.saveConsumedEntries(all)
+            val recentFoods = repo.rememberFoodUsage(resolvedFood, MAX_RECENT_FOODS)
             uiState = uiState.copy(
                 consumedEntries = all,
+                recentFoods = recentFoods,
                 searchResults = emptyList(),
                 query = "",
                 barcodeInput = "",
@@ -2361,8 +2395,10 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             )
             all.add(copy)
             repo.saveConsumedEntries(all)
+            val recentFoods = repo.rememberFoodUsage(copy.asFoodItem(), MAX_RECENT_FOODS)
             uiState = uiState.copy(
                 consumedEntries = all,
+                recentFoods = recentFoods,
                 message = "Added again with ${grams.roundToInt()}g."
             )
         }
@@ -2395,10 +2431,22 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             }.onSuccess {
                 val profile = repo.loadProfile()
                 val entries = repo.loadConsumedEntries()
+                val recentFoodsLoaded = repo.loadRecentFoods()
+                val recentFoods = if (recentFoodsLoaded.isNotEmpty()) {
+                    recentFoodsLoaded.take(MAX_RECENT_FOODS)
+                } else {
+                    entries
+                        .asReversed()
+                        .distinctBy { "${it.source.name}|${it.foodId}|${it.description.lowercase()}" }
+                        .map { it.asFoodItem() }
+                        .take(MAX_RECENT_FOODS)
+                }
+                if (recentFoods != recentFoodsLoaded) repo.saveRecentFoods(recentFoods)
                 uiState = uiState.copy(
                     isImporting = false,
                     profile = profile,
                     consumedEntries = entries,
+                    recentFoods = recentFoods,
                     weightKgInput = profile?.weightKg?.toString().orEmpty(),
                     heightCmInput = profile?.heightCm?.toString().orEmpty(),
                     ageInput = profile?.age?.toString().orEmpty(),
@@ -2621,6 +2669,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     companion object {
+        private const val MAX_RECENT_FOODS = 100
+
         fun factory(app: Application): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = NutritionViewModel(app) as T
@@ -2907,6 +2957,42 @@ class NutritionRepository(private val context: Context) {
         prefs.edit().putString("entries_json", arr.toString()).apply()
     }
 
+    suspend fun loadRecentFoods(): List<FoodItem> = withContext(Dispatchers.IO) {
+        loadFoodsFromPrefs("recent_foods_json").take(100)
+    }
+
+    suspend fun saveRecentFoods(foods: List<FoodItem>) = withContext(Dispatchers.IO) {
+        saveFoodsToPrefs("recent_foods_json", foods.take(100))
+    }
+
+    suspend fun rememberFoodUsage(food: FoodItem, limit: Int = 100): List<FoodItem> = withContext(Dispatchers.IO) {
+        val current = loadFoodsFromPrefs("recent_foods_json")
+        val signature = recentFoodSignature(food)
+        val updated = buildList {
+            add(food)
+            addAll(current.filterNot { recentFoodSignature(it) == signature })
+        }.take(limit)
+        saveFoodsToPrefs("recent_foods_json", updated)
+        updated
+    }
+
+    suspend fun rememberManualFood(food: FoodItem): List<FoodItem> = withContext(Dispatchers.IO) {
+        if (food.source != FoodSource.MANUAL) return@withContext loadFoodsFromPrefs("manual_foods_json")
+        val current = loadFoodsFromPrefs("manual_foods_json")
+        val fingerprint = manualFoodFingerprint(food)
+        val updated = current.toMutableList()
+        val existingIndex = updated.indexOfFirst { manualFoodFingerprint(it) == fingerprint }
+        if (existingIndex >= 0) {
+            val existing = updated[existingIndex]
+            updated[existingIndex] = food.copy(id = existing.id)
+        } else {
+            updated.add(0, food)
+        }
+        saveFoodsToPrefs("manual_foods_json", updated)
+        cacheFoods(listOf(updated[existingIndex.coerceAtLeast(0)]))
+        updated
+    }
+
     suspend fun saveRecipes(recipes: List<Recipe>) = withContext(Dispatchers.IO) {
         val arr = JSONArray()
         recipes.forEach { recipe ->
@@ -2992,6 +3078,8 @@ class NutritionRepository(private val context: Context) {
             .put("profile_json", prefs.getString("profile_json", null))
             .put("entries_json", prefs.getString("entries_json", null))
             .put("foods_cache_json", prefs.getString("foods_cache_json", null))
+            .put("manual_foods_json", prefs.getString("manual_foods_json", null))
+            .put("recent_foods_json", prefs.getString("recent_foods_json", null))
             .put("recipes_json", prefs.getString("recipes_json", null))
             .toString(2)
 
@@ -3019,17 +3107,23 @@ class NutritionRepository(private val context: Context) {
         val profileJson = json.opt("profile_json")?.takeIf { it != JSONObject.NULL }?.toString()
         val entriesJson = json.opt("entries_json")?.takeIf { it != JSONObject.NULL }?.toString()
         val foodsCacheJson = json.opt("foods_cache_json")?.takeIf { it != JSONObject.NULL }?.toString()
+        val manualFoodsJson = json.opt("manual_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
+        val recentFoodsJson = json.opt("recent_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
         val recipesJson = json.opt("recipes_json")?.takeIf { it != JSONObject.NULL }?.toString()
 
         validateJsonString(profileJson, isArray = false)
         validateJsonString(entriesJson, isArray = true)
         validateJsonString(foodsCacheJson, isArray = true)
+        validateJsonString(manualFoodsJson, isArray = true)
+        validateJsonString(recentFoodsJson, isArray = true)
         validateJsonString(recipesJson, isArray = true)
 
         prefs.edit()
             .putString("profile_json", profileJson)
             .putString("entries_json", entriesJson)
             .putString("foods_cache_json", foodsCacheJson)
+            .putString("manual_foods_json", manualFoodsJson)
+            .putString("recent_foods_json", recentFoodsJson)
             .putString("recipes_json", recipesJson)
             .apply()
     }
@@ -3430,6 +3524,97 @@ class NutritionRepository(private val context: Context) {
         }
     }
 
+    private fun loadFoodsFromPrefs(key: String): List<FoodItem> {
+        val raw = prefs.getString(key, null) ?: return emptyList()
+        val arr = JSONArray(raw)
+        return buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val source = FoodSource.entries.firstOrNull { it.name == o.optString("source", FoodSource.USDA.name) } ?: FoodSource.USDA
+                val id = o.optString("id", o.optLong("fdcId", -1L).toString())
+                if (id.isBlank() || id == "-1") continue
+                add(
+                    FoodItem(
+                        id = id,
+                        source = source,
+                        description = o.optString("description"),
+                        brand = o.optString("brand"),
+                        caloriesPer100g = o.optDouble("caloriesPer100g", o.optDouble("calories", 0.0)),
+                        proteinPer100g = o.optDouble("proteinPer100g", 0.0),
+                        carbsPer100g = o.optDouble("carbsPer100g", 0.0),
+                        fatPer100g = o.optDouble("fatPer100g", 0.0),
+                        fiberPer100g = o.optDouble("fiberPer100g", 0.0),
+                        sugarPer100g = o.optDouble("sugarPer100g", 0.0),
+                        sodiumMgPer100g = o.optDouble("sodiumMgPer100g", 0.0),
+                        potassiumMgPer100g = o.optDouble("potassiumMgPer100g", 0.0),
+                        calciumMgPer100g = o.optDouble("calciumMgPer100g", 0.0),
+                        ironMgPer100g = o.optDouble("ironMgPer100g", 0.0)
+                    )
+                )
+            }
+        }
+    }
+
+    private fun saveFoodsToPrefs(key: String, foods: List<FoodItem>) {
+        val arr = JSONArray()
+        foods.forEach { e ->
+            arr.put(
+                JSONObject()
+                    .put("id", e.id)
+                    .put("source", e.source.name)
+                    .put("description", e.description)
+                    .put("brand", e.brand)
+                    .put("caloriesPer100g", e.caloriesPer100g)
+                    .put("proteinPer100g", e.proteinPer100g)
+                    .put("carbsPer100g", e.carbsPer100g)
+                    .put("fatPer100g", e.fatPer100g)
+                    .put("fiberPer100g", e.fiberPer100g)
+                    .put("sugarPer100g", e.sugarPer100g)
+                    .put("sodiumMgPer100g", e.sodiumMgPer100g)
+                    .put("potassiumMgPer100g", e.potassiumMgPer100g)
+                    .put("calciumMgPer100g", e.calciumMgPer100g)
+                    .put("ironMgPer100g", e.ironMgPer100g)
+            )
+        }
+        prefs.edit().putString(key, arr.toString()).apply()
+    }
+
+    private fun manualFoodFingerprint(food: FoodItem): String {
+        return buildString {
+            append(food.description.trim().lowercase(Locale.ROOT))
+            append("|")
+            append(food.brand.trim().lowercase(Locale.ROOT))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.caloriesPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.proteinPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.carbsPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.fatPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.fiberPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.sugarPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.sodiumMgPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.potassiumMgPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.calciumMgPer100g))
+            append("|")
+            append("%.3f".format(Locale.ROOT, food.ironMgPer100g))
+        }
+    }
+
+    private fun recentFoodSignature(food: FoodItem): String {
+        return if (food.source == FoodSource.MANUAL) {
+            "MANUAL|${manualFoodFingerprint(food)}"
+        } else {
+            "${food.source.name}|${food.id}"
+        }
+    }
+
     private fun validateJsonString(raw: String?, isArray: Boolean) {
         if (raw == null) return
         if (isArray) JSONArray(raw) else JSONObject(raw)
@@ -3467,7 +3652,8 @@ class NutritionRepository(private val context: Context) {
         var changed = false
         newFoods.forEach { f ->
             val key = "${f.source.name}:${f.id}"
-            if (!existing.containsKey(key)) {
+            val current = existing[key]
+            if (current == null || current != f) {
                 existing[key] = f
                 changed = true
             }
