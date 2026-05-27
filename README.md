@@ -49,3 +49,6 @@ FATSECRET_CLIENT_SECRET=your_fatsecret_client_secret
 
 ## Repository
 GitHub remote: `git@github.com:Atx85/carbomon-tracker.git`
+
+## License
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
