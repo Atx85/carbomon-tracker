@@ -6,9 +6,19 @@ CarboMon Tracker is an Android app for logging meals, tracking daily carbohydrat
 
 ## Download Android app
 
-[Open successful builds to download the APK](https://github.com/Atx85/carbomon-tracker/actions/workflows/android-build.yml?query=is%3Asuccess)
+[**Download latest APK**](https://github.com/Atx85/carbomon-tracker/releases/latest/download/carbomon-latest.apk)
 
-After the first successful build, open the newest successful run for your desired branch and select **Download the APK** in its summary, or **carbomon-debug-apk** under **Artifacts**. Sign in to GitHub to download, extract the archive, then open `app-debug.apk` on an Android 10 or newer device. Downloads are test builds and are kept for 30 days; run the workflow again if a download has expired.
+Download `carbomon-latest.apk` directly and open it on an Android 10 or newer device. No GitHub account or ZIP extraction is required. This link becomes available after the first successful release-enabled build on `main` and automatically follows subsequent releases.
+
+These are debug test builds. Each successful build on `main` publishes a GitHub Release with the APK attached; release downloads do not have the 30-day Actions artifact expiry. [View release details and previous builds](https://github.com/Atx85/carbomon-tracker/releases).
+
+Public APKs omit embedded API credentials. Saved foods, generic staples and Open Food Facts barcode lookup are available; USDA name search and FatSecret lookups require a personal build with your own API credentials.
+
+### Updating an existing installation
+
+Android requires an update to use the same signing key as the installed app. Earlier GitHub builds used a new temporary debug key on each runner, so those APKs may fail to install over a previous copy. Keep the existing app installed and export a backup from the app's settings before attempting a migration. Uninstalling deletes the app's local data.
+
+The workflow now requires a persistent signing key before publishing from `main`. Reuse the original computer's debug keystore if that computer built the installed app. If the installed copy came from an earlier GitHub build and its temporary key was not saved, the original key cannot be recovered from the APK. Moving to a stable key then requires exporting a backup, reinstalling, and importing the backup; do this only after checking that the backup was saved successfully.
 
 ## Features
 - Daily and weekly diary views
@@ -68,13 +78,19 @@ bash ./gradlew assembleDebug
 
 The [Android build workflow](https://github.com/Atx85/carbomon-tracker/actions/workflows/android-build.yml) runs unit tests and builds a debug APK on pushes to `main` or `feature/**` branches and pull requests targeting `main`. Once the workflow is on the default branch, you can also select **Run workflow** in GitHub Actions to start a build manually.
 
-Optional repository secrets under **Settings → Secrets and variables → Actions** enable the food search services in the APK:
+After tests and the build succeed on `main`, a separate publishing job creates a release for that exact commit and marks it as the latest release. Feature branches and pull requests only produce Actions artifacts. The publishing job uses GitHub's built-in token with `contents: write`; no personal access token is needed. Repository or organisation policies must allow that permission.
 
-- `USDA_API_KEY`
-- `FATSECRET_CLIENT_ID`
-- `FATSECRET_CLIENT_SECRET`
+Before the first build on `main`, add the repository secret `ANDROID_DEBUG_KEYSTORE_BASE64`. Use the existing debug keystore from the computer that built the installed app (`~/.android/debug.keystore` on macOS/Linux, `%USERPROFILE%\.android\debug.keystore` on Windows). It must use the standard Android debug alias `androiddebugkey` and password `android`. Do not generate a replacement if you need to update an existing installation.
 
-The build can run without these secrets; the corresponding online food searches need credentials to work. The workflow also uploads unit-test reports for 14 days, including when tests fail.
+With GitHub CLI authenticated on the original build computer, this macOS/Linux command sends the key directly to the repository secret without printing it:
+
+```bash
+base64 < ~/.android/debug.keystore | gh secret set ANDROID_DEBUG_KEYSTORE_BASE64 --repo Atx85/carbomon-tracker
+```
+
+Keep a private backup of this keystore and do not commit it. Every published build restores the same key, and `main` fails clearly if the secret is missing. Pull requests do not receive the key; their APKs are disposable test builds and may not install over an existing copy. Feature builds also use temporary keys when the secret is unavailable.
+
+CI builds explicitly leave API credentials blank because credentials embedded in an APK can be extracted. For your own build, use the local Gradle properties described above. Unit-test reports remain available as Actions artifacts for 14 days, including when tests fail.
 
 ## Repository
 GitHub remote: `git@github.com:Atx85/carbomon-tracker.git`
