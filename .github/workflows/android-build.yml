@@ -38,7 +38,9 @@ jobs:
             gradle/wrapper/gradle-wrapper.properties
 
       - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;34.0.0"
+        # GitHub's Ubuntu runner installs sdkmanager outside PATH.
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;34.0.0"
 
       - name: Run unit tests and build debug APK
         env:
