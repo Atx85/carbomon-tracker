@@ -16,3 +16,4 @@ local.properties
 
 # Local logs
 build.log
+.idea/

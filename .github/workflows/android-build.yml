@@ -1,0 +1,74 @@
+name: Android build
+
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle.kts
+            gradle/libs.versions.toml
+            gradle/wrapper/gradle-wrapper.properties
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;34.0.0"
+
+      - name: Run unit tests and build debug APK
+        env:
+          ORG_GRADLE_PROJECT_USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
+          ORG_GRADLE_PROJECT_FATSECRET_CLIENT_ID: ${{ secrets.FATSECRET_CLIENT_ID }}
+          ORG_GRADLE_PROJECT_FATSECRET_CLIENT_SECRET: ${{ secrets.FATSECRET_CLIENT_SECRET }}
+        run: bash ./gradlew --no-daemon testDebugUnitTest assembleDebug
+
+      - name: Upload APK
+        id: apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: carbomon-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Add download link to build summary
+        env:
+          APK_URL: ${{ steps.apk.outputs.artifact-url }}
+        run: |
+          printf '### CarboMon Android build\n\n[Download the APK](%s)\n' "$APK_URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14

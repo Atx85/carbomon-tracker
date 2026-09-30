@@ -53,7 +53,7 @@
     <string name="lookup_barcode">Lookup Barcode</string>
     <string name="scan_barcode_camera">Scan Barcode with Camera</string>
     <string name="add_food_manually">Add food manually</string>
-    <string name="manual_help">Use per-100g values. The grams field at the top controls how much gets added to diary.</string>
+    <string name="manual_help">Enter the label values per 100 g. Include the brand (for example, Lidl UK), fat percentage and raw or cooked state in the name where relevant. Save for future searches, or add to your diary.</string>
     <string name="food_name">Food name</string>
     <string name="brand_optional">Brand (optional)</string>
     <string name="protein_g">Protein g</string>
@@ -90,12 +90,12 @@
     <string name="save">Save</string>
     <string name="daily_micronutrients">Daily micronutrients</string>
     <string name="language_selected">Selected: %1$s</string>
-    <string name="usda_api_missing_cached">USDA API key missing. Showing only cached results.</string>
+    <string name="usda_api_missing_cached">Online search is not configured. Your saved foods and basic staples are available offline.</string>
     <string name="camera_permission_denied">Camera permission denied. Enable it in app settings to scan.</string>
     <string name="source_usda">USDA</string>
     <string name="source_fatsecret">FatSecret</string>
     <string name="source_openfoodfacts">OpenFoodFacts</string>
-    <string name="source_manual">Manual</string>
+    <string name="source_manual">My food</string>
     <string name="micronutrient_fiber">Fiber</string>
     <string name="micronutrient_sugar">Sugar</string>
     <string name="micronutrient_sodium">Sodium</string>
@@ -135,4 +135,13 @@
     <string name="kcal_label">kcal</string>
     <string name="barcode_label">Barcode</string>
     <string name="save_recipe">Save Recipe</string>
+    <string name="recently_used">Recently used</string>
+    <string name="recent_recipe_help">Choose a food to reuse its last amount. You can adjust the grams before adding it.</string>
+    <string name="no_recent_foods">No recently used foods yet.</string>
+    <string name="last_used_grams">Last used: %1$s g</string>
+    <string name="no_previous_amount">No previous amount saved; starts at 100 g.</string>
+    <string name="source_generic">Generic staple</string>
+    <string name="save_to_my_foods">Save to my foods</string>
+    <string name="food_saved">Saved %1$s. Find it again by name or brand.</string>
+    <string name="food_search_help">Search your saved foods, basic staples and online results. Use Manual to save a missing product from its label.</string>
 </resources>

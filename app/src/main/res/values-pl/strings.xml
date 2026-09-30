@@ -53,7 +53,7 @@
     <string name="lookup_barcode">Wyszukaj kod</string>
     <string name="scan_barcode_camera">Skanuj kod kamerą</string>
     <string name="add_food_manually">Dodaj jedzenie ręcznie</string>
-    <string name="manual_help">Użyj wartości na 100 g. Pole gramów u góry określa, ile trafi do dziennika.</string>
+    <string name="manual_help">Wpisz wartości z etykiety na 100 g. Podaj markę (np. Lidl UK), a w nazwie zawartość tłuszczu i w razie potrzeby informację, czy produkt jest surowy czy ugotowany. Zapisz do przyszłych wyszukiwań lub dodaj do dziennika.</string>
     <string name="food_name">Nazwa jedzenia</string>
     <string name="brand_optional">Marka (opcjonalnie)</string>
     <string name="protein_g">Białko g</string>
@@ -90,12 +90,12 @@
     <string name="save">Zapisz</string>
     <string name="daily_micronutrients">Dzienne mikroskładniki</string>
     <string name="language_selected">Wybrano: %1$s</string>
-    <string name="usda_api_missing_cached">Brak klucza API USDA. Pokazuję tylko wyniki z pamięci podręcznej.</string>
+    <string name="usda_api_missing_cached">Wyszukiwanie online nie jest skonfigurowane. Zapisane produkty i produkty podstawowe są dostępne offline.</string>
     <string name="camera_permission_denied">Brak uprawnienia do kamery. Włącz je w ustawieniach aplikacji, aby skanować.</string>
     <string name="source_usda">USDA</string>
     <string name="source_fatsecret">FatSecret</string>
     <string name="source_openfoodfacts">OpenFoodFacts</string>
-    <string name="source_manual">Ręcznie</string>
+    <string name="source_manual">Mój produkt</string>
     <string name="micronutrient_fiber">Błonnik</string>
     <string name="micronutrient_sugar">Cukier</string>
     <string name="micronutrient_sodium">Sód</string>
@@ -135,4 +135,13 @@
     <string name="kcal_label">kcal</string>
     <string name="barcode_label">Kod kreskowy</string>
     <string name="save_recipe">Zapisz przepis</string>
+    <string name="recently_used">Ostatnio używane</string>
+    <string name="recent_recipe_help">Wybierz produkt, aby użyć ostatniej ilości. Przed dodaniem możesz zmienić liczbę gramów.</string>
+    <string name="no_recent_foods">Brak ostatnio używanych produktów.</string>
+    <string name="last_used_grams">Ostatnia ilość: %1$s g</string>
+    <string name="no_previous_amount">Brak zapisanej ilości; wartość początkowa to 100 g.</string>
+    <string name="source_generic">Produkt podstawowy</string>
+    <string name="save_to_my_foods">Zapisz w moich produktach</string>
+    <string name="food_saved">Zapisano %1$s. Wyszukaj ponownie po nazwie lub marce.</string>
+    <string name="food_search_help">Szukaj w zapisanych produktach, produktach podstawowych i wynikach online. Brakujący produkt możesz zapisać ręcznie na podstawie etykiety.</string>
 </resources>

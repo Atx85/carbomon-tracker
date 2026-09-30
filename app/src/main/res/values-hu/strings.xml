@@ -53,7 +53,7 @@
     <string name="lookup_barcode">Vonalkód lekérdezése</string>
     <string name="scan_barcode_camera">Vonalkód beolvasása kamerával</string>
     <string name="add_food_manually">Étel kézi hozzáadása</string>
-    <string name="manual_help">100g-ra vonatkozó értékeket adj meg. A fenti gramm mező szabályozza, mennyi kerül a naplóba.</string>
+    <string name="manual_help">A címke 100 g-ra vonatkozó értékeit add meg. Add meg a márkát (például Lidl UK), a névben pedig a zsírtartalmat és szükség szerint azt, hogy nyers vagy főtt. Mentsd későbbi kereséshez, vagy add a naplóhoz.</string>
     <string name="food_name">Étel neve</string>
     <string name="brand_optional">Márka (opcionális)</string>
     <string name="protein_g">Fehérje g</string>
@@ -90,12 +90,12 @@
     <string name="save">Mentés</string>
     <string name="daily_micronutrients">Napi mikrotápanyagok</string>
     <string name="language_selected">Kiválasztva: %1$s</string>
-    <string name="usda_api_missing_cached">USDA API kulcs hiányzik. Csak gyorsítótárazott találatok láthatók.</string>
+    <string name="usda_api_missing_cached">Az online keresés nincs beállítva. A mentett ételek és alapélelmiszerek offline is elérhetők.</string>
     <string name="camera_permission_denied">A kameraengedély megtagadva. Engedélyezd az alkalmazás beállításaiban a szkenneléshez.</string>
     <string name="source_usda">USDA</string>
     <string name="source_fatsecret">FatSecret</string>
     <string name="source_openfoodfacts">OpenFoodFacts</string>
-    <string name="source_manual">Kézi</string>
+    <string name="source_manual">Saját étel</string>
     <string name="micronutrient_fiber">Rost</string>
     <string name="micronutrient_sugar">Cukor</string>
     <string name="micronutrient_sodium">Nátrium</string>
@@ -135,4 +135,13 @@
     <string name="kcal_label">kcal</string>
     <string name="barcode_label">Vonalkód</string>
     <string name="save_recipe">Recept mentése</string>
+    <string name="recently_used">Legutóbb használt</string>
+    <string name="recent_recipe_help">Válassz egy ételt a legutóbbi mennyiség használatához. Hozzáadás előtt módosíthatod a grammot.</string>
+    <string name="no_recent_foods">Még nincsenek legutóbb használt ételek.</string>
+    <string name="last_used_grams">Legutóbbi mennyiség: %1$s g</string>
+    <string name="no_previous_amount">Nincs mentett mennyiség; a kezdőérték 100 g.</string>
+    <string name="source_generic">Általános alapélelmiszer</string>
+    <string name="save_to_my_foods">Mentés saját ételként</string>
+    <string name="food_saved">%1$s mentve. Név vagy márka alapján újra megtalálod.</string>
+    <string name="food_search_help">Keresés a mentett ételek, alapélelmiszerek és online találatok között. A hiányzó terméket a címkéje alapján kézzel mentheted.</string>
 </resources>
