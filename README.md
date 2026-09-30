@@ -10,15 +10,17 @@ CarboMon Tracker is an Android app for logging meals, tracking daily carbohydrat
 
 Download `carbomon-latest.apk` directly and open it on an Android 10 or newer device. No GitHub account or ZIP extraction is required. This link becomes available after the first successful release-enabled build on `main` and automatically follows subsequent releases.
 
-These are debug test builds. Each successful build on `main` publishes a GitHub Release with the APK attached; release downloads do not have the 30-day Actions artifact expiry. [View release details and previous builds](https://github.com/Atx85/carbomon-tracker/releases).
+Downloads are signed release builds with debugging disabled. Each successful build on `main` publishes a GitHub Release with the APK attached; release downloads do not have the 30-day Actions artifact expiry. [View release details and previous builds](https://github.com/Atx85/carbomon-tracker/releases).
 
 Public APKs omit embedded API credentials. Saved foods, generic staples and Open Food Facts barcode lookup are available; USDA name search and FatSecret lookups require a personal build with your own API credentials.
 
 ### Updating an existing installation
 
-Android requires an update to use the same signing key as the installed app. Earlier GitHub builds used a new temporary debug key on each runner, so those APKs may fail to install over a previous copy. Keep the existing app installed and export a backup from the app's settings before attempting a migration. Uninstalling deletes the app's local data.
+Android requires an update to use the same signing key as the installed app. The release workflow must therefore use the existing release keystore. A keystore is held by whoever built the original release; it cannot be recovered from the phone or APK.
 
-The workflow now requires a persistent signing key before publishing from `main`. Reuse the original computer's debug keystore if that computer built the installed app. If the installed copy came from an earlier GitHub build and its temporary key was not saved, the original key cannot be recovered from the APK. Moving to a stable key then requires exporting a backup, reinstalling, and importing the backup; do this only after checking that the backup was saved successfully.
+Earlier versions of this workflow built debug APKs with temporary keys. Publishing an APK on a GitHub Release page does not change its Android build type. The workflow now builds the release variant and signs it separately before publication. Switching to release mode alone does not fix a mismatch with an installed app's key.
+
+Keep the existing app installed and export a backup from its settings before any migration. Uninstalling deletes local data. If the original signing key is unavailable, first verify that your backup is saved before considering a reinstall and restore.
 
 ## Features
 - Daily and weekly diary views
@@ -68,7 +70,7 @@ FATSECRET_CLIENT_ID=your_fatsecret_client_id
 FATSECRET_CLIENT_SECRET=your_fatsecret_client_secret
 ```
 
-4. Build and run the app:
+4. For local development in Android Studio, build a debug APK (public downloads use the separate release workflow below):
 
 ```bash
 bash ./gradlew assembleDebug
@@ -76,19 +78,25 @@ bash ./gradlew assembleDebug
 
 ## GitHub Actions builds
 
-The [Android build workflow](https://github.com/Atx85/carbomon-tracker/actions/workflows/android-build.yml) runs unit tests and builds a debug APK on pushes to `main` or `feature/**` branches and pull requests targeting `main`. Once the workflow is on the default branch, you can also select **Run workflow** in GitHub Actions to start a build manually.
+The [Android build workflow](https://github.com/Atx85/carbomon-tracker/actions/workflows/android-build.yml) tests and builds the **release** variant on pushes to `main` or `feature/**` and pull requests targeting `main`. Once the workflow is on the default branch, **Run workflow** also starts a build manually.
 
-After tests and the build succeed on `main`, a separate publishing job creates a release for that exact commit and marks it as the latest release. Feature branches and pull requests only produce Actions artifacts. The publishing job uses GitHub's built-in token with `contents: write`; no personal access token is needed. Repository or organisation policies must allow that permission.
+Only a successful build on `main` proceeds to signing and publication. A separate job signs the APK with the persistent release key, verifies its signature, then publishes it as `carbomon-latest.apk`. The README's download link follows the latest release. Pull requests and feature branches produce unsigned build artifacts for development; these are not phone downloads. Release signing secrets are available only to the publication job on `main`.
 
-Before the first build on `main`, add the repository secret `ANDROID_DEBUG_KEYSTORE_BASE64`. Use the existing debug keystore from the computer that built the installed app (`~/.android/debug.keystore` on macOS/Linux, `%USERPROFILE%\.android\debug.keystore` on Windows). It must use the standard Android debug alias `androiddebugkey` and password `android`. Do not generate a replacement if you need to update an existing installation.
+### One-time release signing setup
 
-With GitHub CLI authenticated on the original build computer, this macOS/Linux command sends the key directly to the repository secret without printing it:
+App users do not need signing keys or GitHub secrets. The repository owner configures these once, using the keystore that signed the previous release. The former `ANDROID_DEBUG_KEYSTORE_BASE64` setting is no longer used.
+
+On the computer holding the original release keystore, install Python 3 and [GitHub CLI](https://cli.github.com/), sign in with `gh auth login`, then run:
 
 ```bash
-base64 < ~/.android/debug.keystore | gh secret set ANDROID_DEBUG_KEYSTORE_BASE64 --repo Atx85/carbomon-tracker
+python3 scripts/configure-release-signing.py
 ```
 
-Keep a private backup of this keystore and do not commit it. Every published build restores the same key, and `main` fails clearly if the secret is missing. Pull requests do not receive the key; their APKs are disposable test builds and may not install over an existing copy. Feature builds also use temporary keys when the secret is unavailable.
+The helper asks for the keystore file, key alias and passwords, then encodes and uploads the secrets directly to GitHub. Passwords and the encoded key are not printed or saved to a separate file. If the previous APK was generated in Android Studio, use the keystore selected in **Build → Generate Signed Bundle / APK**. Do not create a replacement key if you need to update an existing installation.
+
+The helper sets `ANDROID_RELEASE_KEYSTORE_BASE64`, `ANDROID_RELEASE_STORE_PASSWORD`, `ANDROID_RELEASE_KEY_ALIAS` and `ANDROID_RELEASE_KEY_PASSWORD`. Keep a private backup of the keystore; never commit it. Publication fails if signing is missing or invalid, so an unsigned APK is never offered through the public download link.
+
+The publication job uses GitHub's built-in token with `contents: write`; repository policies must allow that permission. No personal access token is needed for the workflow. The helper needs a signed-in repository administrator to configure secrets once.
 
 CI builds explicitly leave API credentials blank because credentials embedded in an APK can be extracted. For your own build, use the local Gradle properties described above. Unit-test reports remain available as Actions artifacts for 14 days, including when tests fail.
 
