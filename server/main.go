@@ -80,6 +80,9 @@ func api(s *Store, key string, peerOptions ...peerConfig) http.Handler {
 		peers = peerOptions[0]
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/server-info", func(w http.ResponseWriter, r *http.Request) {
+		sendJSON(w, 200, map[string]bool{"requiresAccessKey": key != ""})
+	})
 	mux.HandleFunc("GET /api/v1/peer-catalog", peerCatalogHandler(s, peers))
 	web, _ := fs.Sub(assets, "web")
 	mux.Handle("GET /", http.FileServer(http.FS(web)))
@@ -208,8 +211,8 @@ func api(s *Store, key string, peerOptions ...peerConfig) http.Handler {
 				return
 			}
 		}
-		public := r.Method == "GET" && (!strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/api/v1/schemas/") || strings.HasPrefix(r.URL.Path, "/api/v1/examples/") || r.URL.Path == "/api/v1/peer-catalog")
-		if !public && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+key)) != 1 {
+		public := r.Method == "GET" && (!strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/api/v1/schemas/") || strings.HasPrefix(r.URL.Path, "/api/v1/examples/") || r.URL.Path == "/api/v1/peer-catalog" || r.URL.Path == "/api/v1/server-info")
+		if key != "" && !public && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+key)) != 1 {
 			fail(w, 401, fmt.Errorf("enter the server access key"))
 			return
 		}
@@ -254,6 +257,7 @@ func main() {
 func run() error {
 	listen := flag.String("listen", "0.0.0.0:8765", "LAN address and port")
 	dataDir := flag.String("data", "data", "database and access-key directory")
+	requireKey := flag.Bool("require-key", false, "require an access key for browser changes and phone sync (optional on a trusted LAN)")
 	discovery := flag.Bool("discovery", true, "advertise this catalogue for the app's Find server button")
 	peerSync := flag.Bool("peer-sync", true, "automatically exchange missing entries with other CarboMon servers on this trusted LAN")
 	peerKeyFile := flag.String("peer-key-file", "", "optional file containing a shared peer key (same file contents on all participating servers)")
@@ -273,9 +277,13 @@ func run() error {
 		return err
 	}
 	keyPath := filepath.Join(*dataDir, "access-key.txt")
-	key, err := readKey(keyPath)
-	if err != nil {
-		return err
+	key := ""
+	if *requireKey {
+		var err error
+		key, err = readKey(keyPath)
+		if err != nil {
+			return err
+		}
 	}
 	s, err := openStore(filepath.Join(*dataDir, "catalog.db"))
 	if err != nil {
@@ -287,7 +295,12 @@ func run() error {
 		return err
 	}
 	defer listener.Close()
-	fmt.Printf("CarboMon catalogue: http://%s\nAccess key: %s\nUse Find server in the Android app, or enter this computer's LAN address.\n", listener.Addr(), keyPath)
+	fmt.Printf("CarboMon catalogue: http://%s\nUse Find server in the Android app, or enter this computer's LAN address.\n", listener.Addr())
+	if *requireKey {
+		fmt.Printf("Optional access-key protection enabled. Key file: %s\n", keyPath)
+	} else {
+		fmt.Println("Ready on your trusted local network. No access key needed.")
+	}
 	if *discovery {
 		announcement, err := advertiseCatalog(listener.Addr().(*net.TCPAddr), s.serverID, peers)
 		if err != nil {

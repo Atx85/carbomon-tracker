@@ -3,8 +3,10 @@ const $ = id => document.getElementById(id);
 let records = [], editing = null, validText = null, createId = null, busy = false;
 function status(message, error = false) { $('status').textContent = message; $('status').classList.toggle('error', error); }
 async function request(path, method = 'GET', data, headers = {}) {
- const response = await fetch('/api/v1/' + path, {method, headers: {'Authorization': 'Bearer ' + $('key').value.trim(), ...(data !== undefined ? {'Content-Type': 'application/json'} : {}), ...headers}, body: data !== undefined ? JSON.stringify(data) : undefined});
+ const key = $('key').value.trim();
+ const response = await fetch('/api/v1/' + path, {method, headers: {...(key ? {'Authorization': 'Bearer ' + key} : {}), ...(data !== undefined ? {'Content-Type': 'application/json'} : {}), ...headers}, body: data !== undefined ? JSON.stringify(data) : undefined});
  const result = await response.json();
+ if (response.status === 401) $('auth').hidden = false;
  if (!response.ok) throw new Error(result.error || 'Request failed');
  return result;
 }
@@ -54,4 +56,10 @@ $('save').onclick = () => run(async () => {
  if (!createId) { const bytes = crypto.getRandomValues(new Uint8Array(16)); createId = 'catalog-' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join(''); }
  const result = editing ? await request(kind + 's/' + encodeURIComponent(editing.id), 'PUT', data, {'If-Match': String(editing.revision)}) : await request(kind + 's', 'POST', data, {'Idempotency-Key': createId});
  showCatalog(result); reset(); $('json').value = ''; status('Saved. Sync the app to receive this entry.');
+});
+run(async () => {
+ const info = await request('server-info');
+ $('auth').hidden = !info.requiresAccessKey;
+ if (info.requiresAccessKey) status('This server requires an access key. Enter it above to connect.');
+ else await refresh();
 });

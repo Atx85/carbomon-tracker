@@ -31,6 +31,7 @@ import java.util.Date
 @Composable
 internal fun CatalogSyncSection(state: NutritionUiState, onAction: (NutritionAction) -> Unit) {
     var disconnect by remember { mutableStateOf(false) }
+    var showKey by remember(state.catalogAddress) { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -67,11 +68,16 @@ internal fun CatalogSyncSection(state: NutritionUiState, onAction: (NutritionAct
         OutlinedTextField(value = state.catalogAddress, onValueChange = { onAction(NutritionAction.UpdateCatalogAddress(it)) },
             label = { Text(stringResource(R.string.catalog_address)) }, placeholder = { Text("http://192.168.1.10:8765") },
             singleLine = true, enabled = !state.isSyncing, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = state.catalogKey, onValueChange = { onAction(NutritionAction.UpdateCatalogKey(it)) },
+        TextButton(onClick = { showKey = !showKey }, enabled = !state.isSyncing) {
+            Text(stringResource(R.string.catalog_key_options))
+        }
+        if (showKey || state.catalogNeedsKey) OutlinedTextField(
+            value = state.catalogKey, onValueChange = { onAction(NutritionAction.UpdateCatalogKey(it)) },
             label = { Text(stringResource(R.string.catalog_key)) }, visualTransformation = PasswordVisualTransformation(),
+            supportingText = { Text(stringResource(R.string.catalog_key_help)) },
             singleLine = true, enabled = !state.isSyncing, modifier = Modifier.fillMaxWidth())
         Button(onClick = { onAction(NutritionAction.SyncCatalog) },
-            enabled = !state.isSyncing && !state.isImporting && state.catalogAddress.isNotBlank() && state.catalogKey.isNotBlank()) {
+            enabled = !state.isSyncing && !state.isImporting && state.catalogAddress.isNotBlank()) {
             Text(stringResource(if (state.isSyncing) R.string.catalog_syncing else R.string.catalog_sync))
         }
         if (state.isSyncing) LinearProgressIndicator(Modifier.fillMaxWidth())

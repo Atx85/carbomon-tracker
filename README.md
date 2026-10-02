@@ -119,7 +119,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 The [standalone catalogue server](server/README.md) runs on Windows or Linux without Apache or Node. Its browser page accepts pasted food/recipe JSON, including lists from an LLM, with validation and a preview before saving.
 
-In the app, open **Setup → Shared food and recipe catalogue**, tap **Find server** (or enter its address), enter the access key, and tap **Sync foods and recipes**. Sync shares your saved scanned products, manual foods and recipes in both directions, including edits and recipe deletions. Downloaded entries stay available offline and appear in search. Diary entries and profile information remain on your phone. Concurrent edits require an explicit choice of which version to keep.
+In the app, open **Setup → Shared food and recipe catalogue**, tap **Find server** (or enter its address), and tap **Sync foods and recipes**. No access key is needed for the default trusted-LAN setup. Sync shares your saved scanned products, manual foods and recipes in both directions, including edits and recipe deletions. Downloaded entries stay available offline and appear in search. Diary entries and profile information remain on your phone. Concurrent edits require an explicit choice of which version to keep.
 
 Servers also discover each other and automatically collect missing entries on the trusted LAN. Existing versions are preserved; later edits/deletions are not mirrored between servers. To move the original catalogue to another computer, stop it and copy its entire data folder. See the [server guide](server/README.md) for peer-sharing controls and migration instructions.
 

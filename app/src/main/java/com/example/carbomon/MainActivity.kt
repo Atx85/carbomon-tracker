@@ -1882,6 +1882,7 @@ data class NutritionUiState(
     val isSyncing: Boolean = false,
     val catalogAddress: String = "",
     val catalogKey: String = "",
+    val catalogNeedsKey: Boolean = false,
     val catalogLastSync: Long = 0,
     val catalogStatus: String = "",
     val catalogConflicts: List<String> = emptyList(),
@@ -2033,7 +2034,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             is NutritionAction.UpdateCatalogAddress -> {
                 if (!uiState.isSyncing) {
                     stopCatalogDiscovery()
-                    uiState = uiState.copy(catalogAddress = action.value, catalogConflicts = emptyList())
+                    uiState = uiState.copy(catalogAddress = action.value, catalogNeedsKey = false, catalogConflicts = emptyList())
                 }
             }
             is NutritionAction.UpdateCatalogKey -> {
@@ -2049,7 +2050,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 stopCatalogDiscovery()
                 repo.clearCatalogConnection()
                 catalogConflicts = JSONArray()
-                uiState = uiState.copy(catalogAddress = "", catalogKey = "", catalogLastSync = 0,
+                uiState = uiState.copy(catalogAddress = "", catalogKey = "", catalogNeedsKey = false, catalogLastSync = 0,
                     catalogConflicts = emptyList(), catalogStatus = getApplication<Application>().getString(R.string.catalog_disconnected))
             }
             is NutritionAction.UpdateWeight -> uiState = uiState.copy(weightKgInput = action.value)
@@ -2314,7 +2315,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
         if (uiState.isSyncing || uiState.isDiscoveringCatalog || server !in uiState.discoveredCatalogServers) return
         repo.saveCatalogConnection(server.address, uiState.catalogKey)
         catalogConflicts = JSONArray()
-        uiState = uiState.copy(catalogAddress = server.address, discoveredCatalogServers = emptyList(),
+        uiState = uiState.copy(catalogAddress = server.address, catalogNeedsKey = false, discoveredCatalogServers = emptyList(),
             catalogConflicts = emptyList(), catalogStatus = "",
             catalogDiscoveryStatus = getApplication<Application>().getString(R.string.catalog_discovery_selected, server.name))
     }
@@ -2333,8 +2334,11 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 val result = repo.syncCatalog(address, key, conflicts, choice)
                 catalogConflicts = JSONArray()
                 uiState = uiState.copy(recipes = repo.loadRecipes(), recentFoods = repo.loadRecentFoods(),
-                    searchResults = emptyList(), catalogLastSync = repo.catalogLastSync(),
+                    searchResults = emptyList(), catalogNeedsKey = false, catalogLastSync = repo.catalogLastSync(),
                     catalogStatus = getApplication<Application>().getString(R.string.catalog_synced, result.foods, result.recipes))
+            } catch (_: CatalogKeyRequired) {
+                uiState = uiState.copy(catalogNeedsKey = true,
+                    catalogStatus = getApplication<Application>().getString(R.string.catalog_key_required))
             } catch (conflict: CatalogConflict) {
                 catalogConflicts = conflict.records
                 uiState = uiState.copy(catalogConflicts = conflict.records.objects().map {

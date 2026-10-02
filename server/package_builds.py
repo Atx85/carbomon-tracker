@@ -13,8 +13,8 @@ WINDOWS_HELP = '''CarboMon catalogue server - Windows (64-bit)
 1. Extract all files into a folder.
 2. Double-click carbomon-catalog-windows-amd64.exe. Keep its window open.
 3. Open http://localhost:8765 in your browser.
-4. Copy the key from data/access-key.txt into the page and Android app.
-5. In the app use Setup > Shared food and recipe catalogue > Find server.
+4. In the app use Setup > Shared food and recipe catalogue > Find server.
+5. Tap Sync foods and recipes. No access key is needed.
 
 Allow this program on your private network if Windows Firewall asks.
 Other CarboMon servers on the same trusted LAN automatically collect missing
@@ -29,8 +29,8 @@ PI_HELP = '''CarboMon catalogue server - Raspberry Pi 4B
 1. Extract this archive into a folder on the Pi.
 2. Open a terminal in that folder and run: ./start-catalog.sh
 3. Open http://localhost:8765 on the Pi, or use the Pi's LAN address on another device.
-4. Copy the key from data/access-key.txt into the page and Android app.
-5. In the app use Setup > Shared food and recipe catalogue > Find server.
+4. In the app use Setup > Shared food and recipe catalogue > Find server.
+5. Tap Sync foods and recipes. No access key is needed.
 
 The launcher selects the included 64-bit or 32-bit executable for your system.
 No Apache, Node, Go, Python, or separate database installation is needed to run it.

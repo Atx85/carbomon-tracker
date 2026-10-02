@@ -177,8 +177,11 @@
     <string name="catalog_discovery_empty">Nie znaleziono katalogu. Uruchom serwer i połącz telefon z tą samą siecią lokalną lub wpisz adres ręcznie.</string>
     <string name="catalog_discovery_saved_missing">Nie znaleziono zapisanego katalogu. Uruchom go w tej samej sieci lokalnej lub wpisz jego adres ręcznie. Aby użyć innego katalogu, najpierw wyczyść połączenie z serwerem.</string>
     <string name="catalog_discovery_choose">Wybierz serwer katalogu:</string>
-    <string name="catalog_discovery_selected">Znaleziono %1$s. W razie potrzeby wpisz klucz dostępu, a następnie zsynchronizuj produkty i przepisy.</string>
+    <string name="catalog_discovery_selected">Znaleziono %1$s. Naciśnij przycisk synchronizacji produktów i przepisów.</string>
     <string name="catalog_discovery_failed">Nie udało się przeszukać sieci lokalnej. Sprawdź połączenie i spróbuj ponownie lub wpisz adres serwera ręcznie.</string>
     <string name="source_scanned">Zeskanowany produkt</string>
     <string name="barcode_saved_for_sync">Zapisano %1$s. Produkt jest dostępny offline i zostanie wysłany przy następnej synchronizacji katalogu.</string>
+    <string name="catalog_key_options">Opcje połączenia</string>
+    <string name="catalog_key_help">Potrzebny tylko wtedy, gdy administrator serwera włączył ochronę kluczem.</string>
+    <string name="catalog_key_required">Ten serwer wymaga klucza dostępu. Wpisz go poniżej, a następnie ponów synchronizację.</string>
 </resources>

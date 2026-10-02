@@ -124,6 +124,7 @@ class CatalogSyncTest {
         clientA.sync(address, key, JSONArray(), null)
         assertEquals(0, clientB.sync(address, key, JSONArray(), null).recipes)
         val beforeFailure = HashMap(b.values)
+        try { clientB.sync(address, "", JSONArray(), null); fail("Expected key prompt") } catch (_: CatalogKeyRequired) { }
         try { clientB.sync(address, "wrong-key", JSONArray(), null); fail("Expected auth error") } catch (_: IllegalStateException) { }
         assertEquals(beforeFailure, b.values)
         assertEquals(0, clientB.sync(address, key, JSONArray(), null).recipes)
@@ -136,6 +137,18 @@ class CatalogSyncTest {
         assertEquals(2, clientA.sync(address, key, JSONArray(), null).foods)
         assertEquals(2, clientB.sync(address, key, JSONArray(), null).foods)
         assertEquals(2, clientB.sync(address, key, JSONArray(), null).foods)
+    }
+
+    @Test fun realServerSyncWithoutAnAccessKey() {
+        val address = System.getenv("CARBOMON_TEST_OPEN_SERVER") ?: ""
+        assumeTrue("Set CARBOMON_TEST_OPEN_SERVER to a fresh key-free server", address.isNotEmpty())
+        val a = MemoryPrefs(); val b = MemoryPrefs()
+        a.values["manual_foods_json"] = JSONArray().put(food()).toString()
+        val clientA = CatalogSyncClient(a.prefs); val clientB = CatalogSyncClient(b.prefs)
+        assertEquals(1, clientA.sync(address, "", JSONArray(), null).foods)
+        assertEquals(1, clientB.sync(address, "  ", JSONArray(), null).foods)
+        assertEquals(1, clientB.sync(address, "old-saved-key", JSONArray(), null).foods)
+        assertEquals(1, clientA.sync(address, "", JSONArray(), null).foods)
     }
 
     // No Android runtime is needed to exercise the real client: only this interface

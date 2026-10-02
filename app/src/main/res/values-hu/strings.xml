@@ -177,8 +177,11 @@
     <string name="catalog_discovery_empty">Nem található katalógus. Indítsd el a szervert, és csatlakoztasd a telefont ugyanahhoz a helyi hálózathoz, vagy add meg kézzel a címet.</string>
     <string name="catalog_discovery_saved_missing">A mentett katalógus nem található. Indítsd el ugyanazon a helyi hálózaton, vagy add meg kézzel a címét. Másik katalógus használatához előbb töröld a szerverkapcsolatot.</string>
     <string name="catalog_discovery_choose">Válassz katalógusszervert:</string>
-    <string name="catalog_discovery_selected">Megtalálva: %1$s. Ha szükséges, add meg a hozzáférési kulcsot, majd indítsd el a szinkronizálást.</string>
+    <string name="catalog_discovery_selected">Megtalálva: %1$s. Indítsd el az ételek és receptek szinkronizálását.</string>
     <string name="catalog_discovery_failed">Nem sikerült keresni a helyi hálózaton. Ellenőrizd a kapcsolatot, és próbáld újra, vagy add meg kézzel a szerver címét.</string>
     <string name="source_scanned">Beolvasott termék</string>
     <string name="barcode_saved_for_sync">Mentve: %1$s. Offline is elérhető, és a következő katalógusszinkronizáláskor feltöltődik.</string>
+    <string name="catalog_key_options">Kapcsolati beállítások</string>
+    <string name="catalog_key_help">Csak akkor szükséges, ha a szerver üzemeltetője bekapcsolta a kulcsos védelmet.</string>
+    <string name="catalog_key_required">Ez a szerver hozzáférési kulcsot kér. Add meg alább a kulcsot, majd szinkronizálj újra.</string>
 </resources>

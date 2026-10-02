@@ -37,6 +37,7 @@ private fun nutrientData(source: JSONObject): JSONObject = JSONObject().apply {
 internal data class CatalogPlan(val changes: JSONArray)
 internal enum class ConflictChoice { LOCAL, SERVER }
 internal class CatalogConflict(val records: JSONArray) : Exception("These entries changed on another device. Choose which version to keep.")
+internal class CatalogKeyRequired : IllegalStateException("This server requires an access key")
 internal data class CatalogSyncResult(val foods: Int, val recipes: Int)
 
 internal fun planCatalogSync(
@@ -158,7 +159,6 @@ internal fun normalizeCatalogUrl(raw: String): URL {
 internal class CatalogSyncClient(private val prefs: SharedPreferences) {
     fun sync(address: String, key: String, conflicts: JSONArray, choice: ConflictChoice?): CatalogSyncResult {
         val baseUrl = normalizeCatalogUrl(address)
-        require(key.trim().isNotEmpty()) { "Enter the server access key" }
         val addresses = InetAddress.getAllByName(baseUrl.host)
         require(addresses.isNotEmpty() && addresses.all { it.isLoopbackAddress || it.isSiteLocalAddress || it.isLinkLocalAddress ||
             (it.address.size == 16 && (it.address[0].toInt() and 0xfe) == 0xfc) }) { "Use a server on your local network" }
@@ -178,7 +178,7 @@ internal class CatalogSyncClient(private val prefs: SharedPreferences) {
             readTimeout = 30000
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Authorization", "Bearer ${key.trim()}")
+            if (key.isNotBlank()) setRequestProperty("Authorization", "Bearer ${key.trim()}")
         }
         val catalog = try {
             val body = payload.toString().toByteArray(Charsets.UTF_8)
@@ -186,6 +186,7 @@ internal class CatalogSyncClient(private val prefs: SharedPreferences) {
             conn.setFixedLengthStreamingMode(body.size)
             conn.outputStream.use { it.write(body) }
             val code = conn.responseCode
+            if (code == 401) throw CatalogKeyRequired()
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val raw = stream?.use { input ->
                 val buffer = java.io.ByteArrayOutputStream()

@@ -177,8 +177,11 @@
     <string name="catalog_discovery_empty">No catalogue found. Start the server and connect this phone to the same local network, or enter the address manually.</string>
     <string name="catalog_discovery_saved_missing">Your saved catalogue was not found. Start it on the same local network, or enter its address manually. To use a different catalogue, clear the server connection first.</string>
     <string name="catalog_discovery_choose">Choose a catalogue server:</string>
-    <string name="catalog_discovery_selected">Found %1$s. Enter the access key if needed, then tap Sync foods and recipes.</string>
+    <string name="catalog_discovery_selected">Found %1$s. Tap Sync foods and recipes.</string>
     <string name="catalog_discovery_failed">Could not search the local network. Check your connection and try again, or enter the server address manually.</string>
     <string name="source_scanned">Scanned product</string>
     <string name="barcode_saved_for_sync">Saved %1$s. Available offline and included in your next catalogue sync.</string>
+    <string name="catalog_key_options">Connection options</string>
+    <string name="catalog_key_help">Only needed if the server administrator enabled access-key protection.</string>
+    <string name="catalog_key_required">This server has access-key protection enabled. Enter its key below, then sync again.</string>
 </resources>
