@@ -1,0 +1,46 @@
+name: Catalogue server build
+
+on:
+  push:
+    branches: [main, 'feature/**']
+    paths: ['server/**', '.github/workflows/catalog-server.yml']
+  pull_request:
+    paths: ['server/**', '.github/workflows/catalog-server.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Test server
+        run: go test ./...
+      - name: Build standalone executables
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/carbomon-catalog-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags='-s -w' -o dist/carbomon-catalog-linux-arm64 .
+          GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags='-s -w' -o dist/carbomon-catalog-linux-armv7 .
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o dist/carbomon-catalog-windows-amd64.exe .
+          cp README.md THIRD_PARTY_NOTICES.txt dist/
+      - name: Package Windows and Raspberry Pi downloads
+        run: python3 package_builds.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: carbomon-catalog-server
+          path: server/dist/
+          if-no-files-found: error

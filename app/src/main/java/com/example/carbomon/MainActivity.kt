@@ -95,6 +95,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.UUID
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -300,6 +303,7 @@ fun NutritionApp(modifier: Modifier = Modifier) {
                             targetFat = targets.fatGrams * dayMultiplier
                         )
                     }
+                    CholesterolSummary(cholesterolTotal(entriesForDiary.map { it.cholesterolMgPer100g to it.gramsConsumed }))
                     ConsumedFoodsSection(
                         entries = entriesForDiary,
                         headerText = if (diaryViewMode == DiaryViewMode.DAY) {
@@ -337,7 +341,8 @@ fun NutritionApp(modifier: Modifier = Modifier) {
                         sodiumMg = usedSodiumMg,
                         potassiumMg = usedPotassiumMg,
                         calciumMg = usedCalciumMg,
-                        ironMg = usedIronMg
+                        ironMg = usedIronMg,
+                        cholesterol = cholesterolTotal(state.consumedEntries.filter { it.date == state.selectedDate }.map { it.cholesterolMgPer100g to it.gramsConsumed })
                     )
                 }
 
@@ -510,6 +515,8 @@ private fun ProfileSetupSection(
             }
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            CatalogSyncSection(state, onAction)
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Text(stringResource(R.string.backup_restore), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(
                 stringResource(R.string.backup_restore_help),
@@ -518,13 +525,13 @@ private fun ProfileSetupSection(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onExportBackup,
-                    enabled = !state.isExporting && !state.isImporting
+                    enabled = !state.isExporting && !state.isImporting && !state.isSyncing
                 ) {
                     Text(if (state.isExporting) stringResource(R.string.exporting) else stringResource(R.string.export_backup))
                 }
                 Button(
                     onClick = onImportBackup,
-                    enabled = !state.isExporting && !state.isImporting
+                    enabled = !state.isExporting && !state.isImporting && !state.isSyncing
                 ) {
                     Text(if (state.isImporting) stringResource(R.string.importing) else stringResource(R.string.import_backup))
                 }
@@ -552,6 +559,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
     var manualPotassiumMg by rememberSaveable { mutableStateOf("") }
     var manualCalciumMg by rememberSaveable { mutableStateOf("") }
     var manualIronMg by rememberSaveable { mutableStateOf("") }
+    var manualCholesterolMg by rememberSaveable { mutableStateOf("") }
     val hasCameraPermission = ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.CAMERA
@@ -754,10 +762,13 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    val submitManualFood: (Boolean) -> Unit = { addToDiary ->
+                    CholesterolInput(manualCholesterolMg, { manualCholesterolMg = it })
+                    val cholesterolInputValid = manualCholesterolMg.isBlank() || parseCholesterolMg(manualCholesterolMg) != null
+                    val submitManualFood: (Boolean) -> Unit = submit@ { addToDiary ->
+                        if (!cholesterolInputValid) return@submit
                         fun parseOrZero(raw: String): Double = raw.toDoubleOrNull() ?: 0.0
                         val manualFood = FoodItem(
-                            id = "manual-${System.currentTimeMillis()}",
+                            id = "catalog-${UUID.randomUUID()}",
                             source = FoodSource.MANUAL,
                             description = manualName.trim(),
                             brand = manualBrand.trim(),
@@ -770,7 +781,8 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                             sodiumMgPer100g = parseOrZero(manualSodiumMg),
                             potassiumMgPer100g = parseOrZero(manualPotassiumMg),
                             calciumMgPer100g = parseOrZero(manualCalciumMg),
-                            ironMgPer100g = parseOrZero(manualIronMg)
+                            ironMgPer100g = parseOrZero(manualIronMg),
+                            cholesterolMgPer100g = parseCholesterolMg(manualCholesterolMg)
                         )
                         onAction(if (addToDiary) NutritionAction.AddFood(manualFood) else NutritionAction.SaveFood(manualFood))
                         manualName = ""
@@ -785,15 +797,16 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                         manualPotassiumMg = ""
                         manualCalciumMg = ""
                         manualIronMg = ""
+                        manualCholesterolMg = ""
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { submitManualFood(false) },
-                            enabled = manualName.trim().isNotBlank()
+                            enabled = manualName.trim().isNotBlank() && cholesterolInputValid
                         ) { Text(stringResource(R.string.save_to_my_foods)) }
                         Button(
                             onClick = { submitManualFood(true) },
-                            enabled = manualName.trim().isNotBlank()
+                            enabled = manualName.trim().isNotBlank() && cholesterolInputValid
                         ) { Text(stringResource(R.string.add_manual_food)) }
                     }
                 }
@@ -875,6 +888,7 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                                                 "${totalCalories.roundToInt()} kcal | P ${totalProtein.roundToInt()}g | C ${totalCarbs.roundToInt()}g | F ${totalFat.roundToInt()}g | Fiber ${totalFiber.roundToInt()}g | Sugar ${totalSugar.roundToInt()}g",
                                                 style = MaterialTheme.typography.bodySmall
                                             )
+                                            CholesterolSummary(cholesterolTotal(recipe.ingredients.map { it.cholesterolMgPer100g to it.gramsUsed }))
                                             Text(stringResource(R.string.ingredients_count, recipe.ingredients.size), style = MaterialTheme.typography.bodySmall)
                                             if (recipe.notes.isNotBlank()) {
                                                 Text(recipe.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -928,12 +942,13 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                                     FoodSource.USDA -> stringResource(R.string.source_usda)
                                     FoodSource.FATSECRET -> stringResource(R.string.source_fatsecret)
                                     FoodSource.OPENFOODFACTS -> stringResource(R.string.source_openfoodfacts)
-                                    FoodSource.MANUAL -> stringResource(R.string.source_manual)
+                                    FoodSource.MANUAL -> stringResource(if (isScannedFood(food)) R.string.source_scanned else R.string.source_manual)
                                     FoodSource.RECIPE -> "Recipe"
                                     FoodSource.GENERIC -> stringResource(R.string.source_generic)
                                 }
                                 val sourceAndBrand = if (food.brand.isNotBlank()) "$sourceLabel - ${food.brand}" else sourceLabel
                                 Text(sourceAndBrand, style = MaterialTheme.typography.labelSmall)
+                                CholesterolAmount(food.cholesterolMgPer100g, per100g = true)
                                 Text(
                                     "${food.caloriesPer100g.roundToInt()} kcal | P ${food.proteinPer100g.roundToInt()} | C ${food.carbsPer100g.roundToInt()} | F ${food.fatPer100g.roundToInt()}",
                                     style = MaterialTheme.typography.bodySmall
@@ -1056,6 +1071,13 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
                     minLines = 2
                 )
                 
+                OutlinedTextField(
+                    value = state.recipeFinishedWeightInput,
+                    onValueChange = { onAction(NutritionAction.UpdateRecipeFinishedWeight(it)) },
+                    label = { Text(stringResource(R.string.recipe_finished_weight)) },
+                    supportingText = { Text(stringResource(R.string.recipe_finished_weight_help)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Text(stringResource(R.string.ingredients_title, state.recipeIngredientsInput.size), style = MaterialTheme.typography.titleSmall)
 
                 if (state.recipeIngredientsInput.isNotEmpty()) {
@@ -1298,7 +1320,12 @@ private fun RecipeBuilderDialog(state: NutritionUiState, onAction: (NutritionAct
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        Button(onClick = { onAction(NutritionAction.AddManualRecipeIngredient) }, modifier = Modifier.fillMaxWidth()) {
+                        CholesterolInput(state.manualRecipeCholesterol, { onAction(NutritionAction.UpdateManualRecipeCholesterol(it)) })
+                        Button(
+                            onClick = { onAction(NutritionAction.AddManualRecipeIngredient) },
+                            enabled = state.manualRecipeCholesterol.isBlank() || parseCholesterolMg(state.manualRecipeCholesterol) != null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Text("Add Manual Ingredient")
                         }
                     }
@@ -1482,6 +1509,7 @@ private fun ConsumedFoodsSection(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(entry.description, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
+                        CholesterolAmount(cholesterolForGrams(entry.cholesterolMgPer100g, entry.gramsConsumed))
                         Text(
                             stringResource(
                                 R.string.entry_compact_summary,
@@ -1571,13 +1599,48 @@ private fun ConsumedFoodsSection(
 }
 
 @Composable
+private fun CholesterolInput(value: String, onValueChange: (String) -> Unit) {
+    val invalid = value.isNotBlank() && parseCholesterolMg(value) == null
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(stringResource(R.string.cholesterol_mg)) },
+        supportingText = { Text(stringResource(if (invalid) R.string.cholesterol_invalid else R.string.cholesterol_input_help)) },
+        isError = invalid,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun CholesterolAmount(mg: Double?, per100g: Boolean = false) {
+    val text = if (mg == null) stringResource(R.string.cholesterol_unknown) else {
+        stringResource(if (per100g) R.string.cholesterol_per_100g else R.string.cholesterol_amount, mg)
+    }
+    Text(text, style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+private fun CholesterolSummary(total: CholesterolTotal) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (total.missingCount == 0) {
+            CholesterolAmount(total.knownMg)
+        } else {
+            if (total.knownCount == 0) CholesterolAmount(null)
+            else Text(stringResource(R.string.cholesterol_known_total, total.knownMg), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.cholesterol_missing, total.missingCount), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
 private fun DailyMicronutrientsSection(
     fiberGrams: Double,
     sugarGrams: Double,
     sodiumMg: Double,
     potassiumMg: Double,
     calciumMg: Double,
-    ironMg: Double
+    ironMg: Double,
+    cholesterol: CholesterolTotal
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1588,6 +1651,7 @@ private fun DailyMicronutrientsSection(
             MicronutrientProgressRow(stringResource(R.string.micronutrient_potassium), "mg", 3500.0, potassiumMg)
             MicronutrientProgressRow(stringResource(R.string.micronutrient_calcium), "mg", 1000.0, calciumMg)
             MicronutrientProgressRow(stringResource(R.string.micronutrient_iron), "mg", 18.0, ironMg)
+            CholesterolSummary(cholesterol)
             Text(
                 stringResource(R.string.micronutrient_targets_note),
                 style = MaterialTheme.typography.bodySmall
@@ -1698,7 +1762,9 @@ data class FoodItem(
     val potassiumMgPer100g: Double = 0.0,
     val calciumMgPer100g: Double = 0.0,
     val ironMgPer100g: Double = 0.0,
-    val lastUsedGrams: Double? = null
+    val lastUsedGrams: Double? = null,
+    val cholesterolMgPer100g: Double? = null,
+    val nutritionSource: String = ""
 )
 
 data class ConsumedFoodEntry(
@@ -1717,7 +1783,8 @@ data class ConsumedFoodEntry(
     val sodiumMgPer100g: Double = 0.0,
     val potassiumMgPer100g: Double = 0.0,
     val calciumMgPer100g: Double = 0.0,
-    val ironMgPer100g: Double = 0.0
+    val ironMgPer100g: Double = 0.0,
+    val cholesterolMgPer100g: Double? = null
 )
 
 data class RecipeIngredient(
@@ -1734,7 +1801,8 @@ data class RecipeIngredient(
     val sodiumMgPer100g: Double = 0.0,
     val potassiumMgPer100g: Double = 0.0,
     val calciumMgPer100g: Double = 0.0,
-    val ironMgPer100g: Double = 0.0
+    val ironMgPer100g: Double = 0.0,
+    val cholesterolMgPer100g: Double? = null
 )
 
 data class Recipe(
@@ -1742,7 +1810,8 @@ data class Recipe(
     val name: String,
     val ingredients: List<RecipeIngredient>,
     val createdAtEpochMs: Long,
-    val notes: String = ""
+    val notes: String = "",
+    val finishedWeightGrams: Double? = null
 )
 
 private fun FoodItem.nutrientsLikelyMissing(): Boolean =
@@ -1770,6 +1839,7 @@ internal fun ConsumedFoodEntry.asFoodItem(): FoodItem = FoodItem(
     potassiumMgPer100g = potassiumMgPer100g,
     calciumMgPer100g = calciumMgPer100g,
     ironMgPer100g = ironMgPer100g,
+    cholesterolMgPer100g = cholesterolMgPer100g,
     lastUsedGrams = gramsConsumed
 )
 
@@ -1809,6 +1879,15 @@ data class NutritionUiState(
     val isLoadingBarcode: Boolean = false,
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
+    val isSyncing: Boolean = false,
+    val catalogAddress: String = "",
+    val catalogKey: String = "",
+    val catalogLastSync: Long = 0,
+    val catalogStatus: String = "",
+    val catalogConflicts: List<String> = emptyList(),
+    val isDiscoveringCatalog: Boolean = false,
+    val discoveredCatalogServers: List<CatalogServer> = emptyList(),
+    val catalogDiscoveryStatus: String = "",
     val language: AppLanguage = AppLanguage.SYSTEM,
     val message: String? = null,
     val foodToAdd: FoodItem? = null,
@@ -1816,6 +1895,7 @@ data class NutritionUiState(
     val recipes: List<Recipe> = emptyList(),
     val recipeNameInput: String = "",
     val recipeNotesInput: String = "",
+    val recipeFinishedWeightInput: String = "",
     val recipeIngredientsInput: List<RecipeIngredient> = emptyList(),
     val recipeIngredientQuery: String = "",
     val recipeIngredientBarcodeInput: String = "",
@@ -1841,6 +1921,7 @@ data class NutritionUiState(
     val manualRecipePotassium: String = "",
     val manualRecipeCalcium: String = "",
     val manualRecipeIron: String = "",
+    val manualRecipeCholesterol: String = "",
     val editingRecipeIngredientIndex: Int? = null,
     val showRecipeScanner: Boolean = false,
     val recipeIngredientCameraDenied: Boolean = false
@@ -1854,6 +1935,15 @@ sealed interface NutritionAction {
     data class UpdateActivity(val value: ActivityLevel) : NutritionAction
     data class UpdateGoal(val value: Goal) : NutritionAction
     data class UpdateLanguage(val value: AppLanguage) : NutritionAction
+    data class UpdateCatalogAddress(val value: String) : NutritionAction
+    data class UpdateCatalogKey(val value: String) : NutritionAction
+    data object FindCatalogServer : NutritionAction
+    data object StopCatalogDiscovery : NutritionAction
+    data class SelectCatalogServer(val server: CatalogServer) : NutritionAction
+    data object SyncCatalog : NutritionAction
+    data object KeepLocalCatalogChanges : NutritionAction
+    data object KeepServerCatalogChanges : NutritionAction
+    data object ClearCatalogConnection : NutritionAction
     data object SaveProfile : NutritionAction
     data class UpdateQuery(val value: String) : NutritionAction
     data class UpdateBarcode(val value: String) : NutritionAction
@@ -1880,6 +1970,7 @@ sealed interface NutritionAction {
     data class EditRecipe(val recipe: Recipe) : NutritionAction
     data class UpdateRecipeName(val value: String) : NutritionAction
     data class UpdateRecipeNotes(val value: String) : NutritionAction
+    data class UpdateRecipeFinishedWeight(val value: String) : NutritionAction
     data class UpdateRecipeIngredientQuery(val value: String) : NutritionAction
     data class UpdateRecipeIngredientBarcode(val value: String) : NutritionAction
     data class UpdateRecipeIngredientGrams(val value: String) : NutritionAction
@@ -1913,12 +2004,16 @@ sealed interface NutritionAction {
     data class UpdateManualRecipePotassium(val value: String) : NutritionAction
     data class UpdateManualRecipeCalcium(val value: String) : NutritionAction
     data class UpdateManualRecipeIron(val value: String) : NutritionAction
+    data class UpdateManualRecipeCholesterol(val value: String) : NutritionAction
     data object AddManualRecipeIngredient : NutritionAction
     data class EditRecipeIngredientGrams(val index: Int) : NutritionAction
 }
 class NutritionViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = NutritionRepository(application.applicationContext)
     private var foodSearchJob: Job? = null
+    private var catalogConflicts = JSONArray()
+    private var catalogDiscoveryJob: Job? = null
+    private var catalogDiscoveryGeneration = 0
     var uiState by mutableStateOf(NutritionUiState())
         private set
 
@@ -1927,7 +2022,36 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun onAction(action: NutritionAction) {
+        if (uiState.isSyncing && (action is NutritionAction.SaveFood || action is NutritionAction.AddFood || action is NutritionAction.ConfirmAddFood ||
+                action is NutritionAction.SaveRecipe || action is NutritionAction.ConfirmDeleteRecipe ||
+                action is NutritionAction.ConfirmRecipeIngredientGrams || action is NutritionAction.ImportBackup ||
+                action is NutritionAction.ShowAddRecipeDialog || action is NutritionAction.EditRecipe)) {
+            uiState = uiState.copy(message = getApplication<Application>().getString(R.string.catalog_wait))
+            return
+        }
         when (action) {
+            is NutritionAction.UpdateCatalogAddress -> {
+                if (!uiState.isSyncing) {
+                    stopCatalogDiscovery()
+                    uiState = uiState.copy(catalogAddress = action.value, catalogConflicts = emptyList())
+                }
+            }
+            is NutritionAction.UpdateCatalogKey -> {
+                if (!uiState.isSyncing) uiState = uiState.copy(catalogKey = action.value, catalogConflicts = emptyList())
+            }
+            NutritionAction.FindCatalogServer -> findCatalogServer()
+            NutritionAction.StopCatalogDiscovery -> stopCatalogDiscovery()
+            is NutritionAction.SelectCatalogServer -> selectCatalogServer(action.server)
+            NutritionAction.SyncCatalog -> syncCatalog()
+            NutritionAction.KeepLocalCatalogChanges -> syncCatalog(ConflictChoice.LOCAL)
+            NutritionAction.KeepServerCatalogChanges -> syncCatalog(ConflictChoice.SERVER)
+            NutritionAction.ClearCatalogConnection -> if (!uiState.isSyncing) {
+                stopCatalogDiscovery()
+                repo.clearCatalogConnection()
+                catalogConflicts = JSONArray()
+                uiState = uiState.copy(catalogAddress = "", catalogKey = "", catalogLastSync = 0,
+                    catalogConflicts = emptyList(), catalogStatus = getApplication<Application>().getString(R.string.catalog_disconnected))
+            }
             is NutritionAction.UpdateWeight -> uiState = uiState.copy(weightKgInput = action.value)
             is NutritionAction.UpdateHeight -> uiState = uiState.copy(heightCmInput = action.value)
             is NutritionAction.UpdateAge -> uiState = uiState.copy(ageInput = action.value)
@@ -1963,6 +2087,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 showAddRecipeDialog = true,
                 recipeNameInput = "",
                 recipeNotesInput = "",
+                recipeFinishedWeightInput = "",
                 recipeIngredientsInput = emptyList(),
                 recipeIngredientQuery = "",
                 recipeBeingEditedId = null,
@@ -1979,12 +2104,14 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 manualRecipePotassium = "",
                 manualRecipeCalcium = "",
                 manualRecipeIron = "",
+                manualRecipeCholesterol = "",
                 editingRecipeIngredientIndex = null
             )
             NutritionAction.DismissAddRecipeDialog -> uiState = uiState.copy(
                 showAddRecipeDialog = false,
                 recipeNameInput = "",
                 recipeNotesInput = "",
+                recipeFinishedWeightInput = "",
                 recipeIngredientsInput = emptyList(),
                 recipeBeingEditedId = null,
                 recipeLookupTab = RecipeLookupTab.NAME,
@@ -2000,12 +2127,14 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 manualRecipePotassium = "",
                 manualRecipeCalcium = "",
                 manualRecipeIron = "",
+                manualRecipeCholesterol = "",
                 editingRecipeIngredientIndex = null
             )
             is NutritionAction.EditRecipe -> uiState = uiState.copy(
                 showAddRecipeDialog = true,
                 recipeNameInput = action.recipe.name,
                 recipeNotesInput = action.recipe.notes,
+                recipeFinishedWeightInput = action.recipe.finishedWeightGrams?.toString().orEmpty(),
                 recipeIngredientsInput = action.recipe.ingredients,
                 recipeIngredientQuery = "",
                 recipeBeingEditedId = action.recipe.id,
@@ -2022,10 +2151,12 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 manualRecipePotassium = "",
                 manualRecipeCalcium = "",
                 manualRecipeIron = "",
+                manualRecipeCholesterol = "",
                 editingRecipeIngredientIndex = null
             )
             is NutritionAction.UpdateRecipeName -> uiState = uiState.copy(recipeNameInput = action.value)
             is NutritionAction.UpdateRecipeNotes -> uiState = uiState.copy(recipeNotesInput = action.value)
+            is NutritionAction.UpdateRecipeFinishedWeight -> uiState = uiState.copy(recipeFinishedWeightInput = action.value)
             is NutritionAction.UpdateRecipeIngredientQuery -> uiState = uiState.copy(recipeIngredientQuery = action.value)
             is NutritionAction.UpdateRecipeIngredientBarcode -> uiState = uiState.copy(recipeIngredientBarcodeInput = action.value)
             is NutritionAction.UpdateRecipeIngredientGrams -> uiState = uiState.copy(recipeIngredientGramsInput = action.value)
@@ -2067,6 +2198,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             is NutritionAction.UpdateManualRecipePotassium -> uiState = uiState.copy(manualRecipePotassium = action.value)
             is NutritionAction.UpdateManualRecipeCalcium -> uiState = uiState.copy(manualRecipeCalcium = action.value)
             is NutritionAction.UpdateManualRecipeIron -> uiState = uiState.copy(manualRecipeIron = action.value)
+            is NutritionAction.UpdateManualRecipeCholesterol -> uiState = uiState.copy(manualRecipeCholesterol = action.value)
             NutritionAction.AddManualRecipeIngredient -> addManualRecipeIngredient()
             is NutritionAction.EditRecipeIngredientGrams -> {
                 val ingredient = uiState.recipeIngredientsInput[action.index]
@@ -2085,7 +2217,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                         sodiumMgPer100g = ingredient.sodiumMgPer100g,
                         potassiumMgPer100g = ingredient.potassiumMgPer100g,
                         calciumMgPer100g = ingredient.calciumMgPer100g,
-                        ironMgPer100g = ingredient.ironMgPer100g
+                        ironMgPer100g = ingredient.ironMgPer100g,
+                        cholesterolMgPer100g = ingredient.cholesterolMgPer100g
                     ),
                     showRecipeIngredientGramsDialog = true,
                     recipeIngredientGramsInput = ingredient.gramsUsed.toString(),
@@ -2137,8 +2270,85 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 sex = profile?.sex ?: uiState.sex,
                 activityLevel = profile?.activityLevel ?: uiState.activityLevel,
                 goal = profile?.goal ?: uiState.goal,
-                language = language
+                language = language,
+                catalogAddress = repo.catalogAddress(),
+                catalogKey = repo.catalogKey(),
+                catalogLastSync = repo.catalogLastSync()
             )
+        }
+    }
+
+    private fun stopCatalogDiscovery() {
+        catalogDiscoveryGeneration++
+        catalogDiscoveryJob?.cancel()
+        catalogDiscoveryJob = null
+        uiState = uiState.copy(isDiscoveringCatalog = false, discoveredCatalogServers = emptyList(), catalogDiscoveryStatus = "")
+    }
+
+    private fun findCatalogServer() {
+        if (uiState.isSyncing || uiState.isImporting || uiState.isDiscoveringCatalog) return
+        stopCatalogDiscovery()
+        val generation = catalogDiscoveryGeneration
+        val application = getApplication<Application>()
+        val expectedId = repo.catalogServerId()
+        uiState = uiState.copy(isDiscoveringCatalog = true)
+        catalogDiscoveryJob = viewModelScope.launch {
+            try {
+                val servers = discoverCatalogServers(application, expectedId)
+                if (generation != catalogDiscoveryGeneration) return@launch
+                uiState = uiState.copy(isDiscoveringCatalog = false, discoveredCatalogServers = servers,
+                    catalogDiscoveryStatus = application.getString(if (servers.isEmpty()) {
+                        if (expectedId.isEmpty()) R.string.catalog_discovery_empty else R.string.catalog_discovery_saved_missing
+                    } else R.string.catalog_discovery_choose))
+                if (servers.size == 1) selectCatalogServer(servers.single())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (generation == catalogDiscoveryGeneration) uiState = uiState.copy(isDiscoveringCatalog = false,
+                    catalogDiscoveryStatus = application.getString(R.string.catalog_discovery_failed))
+            }
+        }
+    }
+
+    private fun selectCatalogServer(server: CatalogServer) {
+        if (uiState.isSyncing || uiState.isDiscoveringCatalog || server !in uiState.discoveredCatalogServers) return
+        repo.saveCatalogConnection(server.address, uiState.catalogKey)
+        catalogConflicts = JSONArray()
+        uiState = uiState.copy(catalogAddress = server.address, discoveredCatalogServers = emptyList(),
+            catalogConflicts = emptyList(), catalogStatus = "",
+            catalogDiscoveryStatus = getApplication<Application>().getString(R.string.catalog_discovery_selected, server.name))
+    }
+
+    private fun syncCatalog(choice: ConflictChoice? = null) {
+        if (uiState.isSyncing || uiState.isImporting || uiState.showAddRecipeDialog) return
+        stopCatalogDiscovery()
+        val address = uiState.catalogAddress
+        val key = uiState.catalogKey
+        val conflicts = if (choice == null) JSONArray() else catalogConflicts
+        foodSearchJob?.cancel()
+        uiState = uiState.copy(isSyncing = true, isLoading = false, catalogStatus = "", catalogConflicts = emptyList())
+        viewModelScope.launch {
+            try {
+                repo.saveCatalogConnection(address, key)
+                val result = repo.syncCatalog(address, key, conflicts, choice)
+                catalogConflicts = JSONArray()
+                uiState = uiState.copy(recipes = repo.loadRecipes(), recentFoods = repo.loadRecentFoods(),
+                    searchResults = emptyList(), catalogLastSync = repo.catalogLastSync(),
+                    catalogStatus = getApplication<Application>().getString(R.string.catalog_synced, result.foods, result.recipes))
+            } catch (conflict: CatalogConflict) {
+                catalogConflicts = conflict.records
+                uiState = uiState.copy(catalogConflicts = conflict.records.objects().map {
+                    val data = it.optJSONObject("data")
+                    data?.optString("name", data.optString("description", it.getString("id"))) ?: it.getString("id")
+                }, catalogStatus = getApplication<Application>().getString(R.string.catalog_conflict_help))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                uiState = uiState.copy(catalogStatus = getApplication<Application>().getString(R.string.catalog_failed,
+                    (error.message ?: "Unable to connect").take(500)))
+            } finally {
+                uiState = uiState.copy(isSyncing = false)
+            }
         }
     }
 
@@ -2215,8 +2425,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     private fun searchRecipeIngredients() = searchFoods(uiState.recipeIngredientQuery)
 
     private fun lookupBarcode() {
-        val barcode = uiState.barcodeInput.filter { it.isDigit() }
-        if (barcode.length < 8) {
+        val barcode = uiState.barcodeInput.trim().replace(" ", "").replace("-", "")
+        if (scannedFoodId(barcode) == null) {
             uiState = uiState.copy(message = "Enter a valid barcode number.")
             return
         }
@@ -2228,7 +2438,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 uiState = uiState.copy(
                     searchResults = listOf(food),
                     isLoadingBarcode = false,
-                    message = "Barcode matched: ${food.description}"
+                    message = getApplication<Application>().getString(R.string.barcode_saved_for_sync, food.description)
                 )
             }.onFailure {
                 uiState = uiState.copy(
@@ -2240,8 +2450,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun lookupRecipeIngredientBarcode() {
-        val barcode = uiState.recipeIngredientBarcodeInput.filter { it.isDigit() }
-        if (barcode.length < 8) {
+        val barcode = uiState.recipeIngredientBarcodeInput.trim().replace(" ", "").replace("-", "")
+        if (scannedFoodId(barcode) == null) {
             uiState = uiState.copy(message = "Enter a valid barcode number for recipe ingredient.")
             return
         }
@@ -2253,7 +2463,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 uiState = uiState.copy(
                     searchResults = listOf(food),
                     isLoadingBarcode = false,
-                    message = "Recipe ingredient barcode matched: ${food.description}"
+                    message = getApplication<Application>().getString(R.string.barcode_saved_for_sync, food.description)
                 )
             }.onFailure {
                 uiState = uiState.copy(
@@ -2322,7 +2532,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 sodiumMgPer100g = resolvedFood.sodiumMgPer100g,
                 potassiumMgPer100g = resolvedFood.potassiumMgPer100g,
                 calciumMgPer100g = resolvedFood.calciumMgPer100g,
-                ironMgPer100g = resolvedFood.ironMgPer100g
+                ironMgPer100g = resolvedFood.ironMgPer100g,
+                cholesterolMgPer100g = resolvedFood.cholesterolMgPer100g
             )
             val all = repo.loadConsumedEntries().toMutableList()
             all.add(entry)
@@ -2442,6 +2653,9 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                     sex = profile?.sex ?: uiState.sex,
                     activityLevel = profile?.activityLevel ?: uiState.activityLevel,
                     goal = profile?.goal ?: uiState.goal,
+                    recipes = repo.loadRecipes(),
+                    catalogLastSync = repo.catalogLastSync(),
+                    catalogConflicts = emptyList(),
                     message = "Backup imported."
                 )
             }.onFailure { error ->
@@ -2474,7 +2688,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             sodiumMgPer100g = food.sodiumMgPer100g,
             potassiumMgPer100g = food.potassiumMgPer100g,
             calciumMgPer100g = food.calciumMgPer100g,
-            ironMgPer100g = food.ironMgPer100g
+            ironMgPer100g = food.ironMgPer100g,
+            cholesterolMgPer100g = food.cholesterolMgPer100g
         )
 
         val updated = uiState.recipeIngredientsInput + ingredient
@@ -2517,7 +2732,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             sodiumMgPer100g = food.sodiumMgPer100g,
             potassiumMgPer100g = food.potassiumMgPer100g,
             calciumMgPer100g = food.calciumMgPer100g,
-            ironMgPer100g = food.ironMgPer100g
+            ironMgPer100g = food.ironMgPer100g,
+            cholesterolMgPer100g = food.cholesterolMgPer100g
         )
 
         if (uiState.editingRecipeIngredientIndex != null) {
@@ -2552,6 +2768,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun addManualRecipeIngredient() {
+        if (uiState.manualRecipeCholesterol.isNotBlank() && parseCholesterolMg(uiState.manualRecipeCholesterol) == null) return
         val name = uiState.manualRecipeName.trim()
         if (name.isBlank()) {
             uiState = uiState.copy(message = "Enter a name for the manual ingredient.")
@@ -2570,7 +2787,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
         val iron = uiState.manualRecipeIron.toDoubleOrNull() ?: 0.0
 
         val food = FoodItem(
-            id = "manual-${System.currentTimeMillis()}",
+            id = "catalog-${UUID.randomUUID()}",
             source = FoodSource.MANUAL,
             description = name,
             brand = uiState.manualRecipeBrand.trim(),
@@ -2583,7 +2800,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             sodiumMgPer100g = sodium,
             potassiumMgPer100g = potassium,
             calciumMgPer100g = calcium,
-            ironMgPer100g = iron
+            ironMgPer100g = iron,
+            cholesterolMgPer100g = parseCholesterolMg(uiState.manualRecipeCholesterol)
         )
 
         uiState = uiState.copy(
@@ -2605,14 +2823,20 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             return
         }
         
+        val finishedWeight = uiState.recipeFinishedWeightInput.trim().replace(',', '.').toDoubleOrNull()
+        if (uiState.recipeFinishedWeightInput.isNotBlank() && (finishedWeight == null || !finishedWeight.isFinite() || finishedWeight <= 0)) {
+            uiState = uiState.copy(message = getApplication<Application>().getString(R.string.recipe_finished_weight_invalid))
+            return
+        }
         viewModelScope.launch {
             val isEditing = uiState.recipeBeingEditedId != null
             val recipe = Recipe(
-                id = uiState.recipeBeingEditedId ?: "recipe-${System.currentTimeMillis()}",
+                id = uiState.recipeBeingEditedId ?: "catalog-${UUID.randomUUID()}",
                 name = name,
                 ingredients = uiState.recipeIngredientsInput,
-                createdAtEpochMs = System.currentTimeMillis(),
-                notes = uiState.recipeNotesInput.trim()
+                createdAtEpochMs = uiState.recipes.firstOrNull { it.id == uiState.recipeBeingEditedId }?.createdAtEpochMs ?: System.currentTimeMillis(),
+                notes = uiState.recipeNotesInput.trim(),
+                finishedWeightGrams = finishedWeight
             )
 
             val existing = uiState.recipes.toMutableList()
@@ -2631,6 +2855,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 recipeBeingEditedId = null,
                 recipeNameInput = "",
                 recipeNotesInput = "",
+                recipeFinishedWeightInput = "",
                 recipeIngredientsInput = emptyList(),
                 message = if (isEditing) "Recipe '$name' updated successfully." else "Recipe '$name' saved successfully."
             )
@@ -2703,8 +2928,29 @@ private fun calculateMacroTargets(calories: Int, weightKg: Double, goal: Goal): 
 }
 class NutritionRepository(private val context: Context) {
     private val prefs = context.getSharedPreferences("nutrition_store", Context.MODE_PRIVATE)
+    private val catalogMutex = Mutex()
     private var fatSecretToken: String? = null
     private var fatSecretTokenExpiryEpochMs: Long = 0
+
+    fun catalogAddress(): String = prefs.getString("catalog_address", "") ?: ""
+    fun catalogServerId(): String = prefs.getString("catalog_server_id", "") ?: ""
+    fun catalogKey(): String = context.getSharedPreferences("catalog_connection", Context.MODE_PRIVATE).getString("key", "") ?: ""
+    fun catalogLastSync(): Long = prefs.getLong("catalog_last_sync", 0)
+
+    fun saveCatalogConnection(address: String, key: String) {
+        val normalized = normalizeCatalogUrl(address).toString().trimEnd('/')
+        prefs.edit().putString("catalog_address", normalized).apply()
+        context.getSharedPreferences("catalog_connection", Context.MODE_PRIVATE).edit().putString("key", key.trim()).apply()
+    }
+
+    fun clearCatalogConnection() {
+        prefs.edit().remove("catalog_address").remove("catalog_server_id")
+            .remove("catalog_baseline_json").remove("catalog_last_sync").apply()
+        context.getSharedPreferences("catalog_connection", Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    internal suspend fun syncCatalog(address: String, key: String, conflicts: JSONArray, choice: ConflictChoice?): CatalogSyncResult =
+        withContext(Dispatchers.IO) { catalogMutex.withLock { CatalogSyncClient(prefs).sync(address, key, conflicts, choice) } }
 
     suspend fun searchUsdaFoods(query: String, apiKey: String): List<FoodItem> = withContext(Dispatchers.IO) {
         val q = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
@@ -2724,59 +2970,43 @@ class NutritionRepository(private val context: Context) {
     }
 
     suspend fun searchCachedFoodsByQuery(query: String, limit: Int = 25): List<FoodItem> = withContext(Dispatchers.IO) {
+        val saved = loadFoodsFromPrefs("manual_foods_json")
+        val savedIds = saved.map { it.id }.toSet()
         searchLocalFoods(
             query,
-            loadFoodsFromPrefs("manual_foods_json") + stapleFoods +
-                loadFoodsFromPrefs("recent_foods_json") + loadFoodsFromPrefs("foods_cache_json"),
+            saved + stapleFoods + loadRecipes().map { resolveRecipeToFood(it) } +
+                (loadFoodsFromPrefs("recent_foods_json") + loadFoodsFromPrefs("foods_cache_json"))
+                    .filter { it.source != FoodSource.MANUAL && it.source != FoodSource.RECIPE }
+                    .filterNot { it.source == FoodSource.OPENFOODFACTS && scannedFoodId(it.id) in savedIds },
             limit
         )
     }
 
     suspend fun lookupOpenFoodFactsBarcode(barcode: String): FoodItem = withContext(Dispatchers.IO) {
-        val clean = barcode.filter { it.isDigit() }
+        val id = scannedFoodId(barcode) ?: error("Enter a valid product barcode")
+        catalogMutex.withLock {
+            findSavedScannedFood(loadFoodsFromPrefs("manual_foods_json"), barcode)
+        }?.let { return@withContext it }
+        val clean = barcode.trim().replace(" ", "").replace("-", "")
         val url = URL("https://world.openfoodfacts.org/api/v0/product/$clean.json")
         val conn = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 10000
             readTimeout = 10000
+            setRequestProperty("User-Agent", "CarboMon/1.0 (Android; https://github.com/Atx85/carbomon-tracker)")
         }
-        conn.connect()
-        if (conn.responseCode !in 200..299) {
-            val err = conn.errorStream?.let { BufferedReader(InputStreamReader(it)).use { br -> br.readText() } } ?: ""
-            conn.disconnect()
-            throw IllegalStateException("HTTP ${conn.responseCode}: $err")
+        val food = try {
+            check(conn.responseCode in 200..299) { "Product lookup returned HTTP ${conn.responseCode}" }
+            val response = conn.inputStream.bufferedReader().use { it.readText() }
+            parseScannedFood(clean, JSONObject(response))
+        } finally { conn.disconnect() }
+        catalogMutex.withLock {
+            // A sync or a second scan may have saved this product during the lookup.
+            val current = loadFoodsFromPrefs("manual_foods_json")
+            current.firstOrNull { it.id == id } ?: food.also {
+                saveFoodsToPrefs("manual_foods_json", listOf(it) + current)
+            }
         }
-        val response = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
-        conn.disconnect()
-        val root = JSONObject(response)
-        if (root.optInt("status", 0) != 1) {
-            throw IllegalStateException("Barcode not found")
-        }
-        val product = root.optJSONObject("product") ?: throw IllegalStateException("Missing product details")
-        val nutriments = product.optJSONObject("nutriments") ?: JSONObject()
-
-        fun n(vararg keys: String): Double {
-            return keys.firstNotNullOfOrNull { k -> parseFlexibleNumber(nutriments.opt(k)) } ?: 0.0
-        }
-
-        val food = FoodItem(
-            id = clean,
-            source = FoodSource.OPENFOODFACTS,
-            description = product.optString("product_name", "").ifBlank { product.optString("generic_name", "Unknown food") },
-            brand = product.optString("brands", ""),
-            caloriesPer100g = n("energy-kcal_100g", "energy-kcal", "energy-kcal_value"),
-            proteinPer100g = n("proteins_100g", "proteins"),
-            carbsPer100g = n("carbohydrates_100g", "carbohydrates"),
-            fatPer100g = n("fat_100g", "fat"),
-            fiberPer100g = n("fiber_100g", "fiber"),
-            sugarPer100g = n("sugars_100g", "sugars"),
-            sodiumMgPer100g = n("sodium_100g", "sodium").let { if (it > 0.0) it else n("salt_100g", "salt") * 393.4 },
-            potassiumMgPer100g = n("potassium_100g", "potassium"),
-            calciumMgPer100g = n("calcium_100g", "calcium"),
-            ironMgPer100g = n("iron_100g", "iron")
-        )
-        cacheFoods(listOf(food))
-        food
     }
 
     suspend fun lookupFatSecretBarcode(barcode: String, clientId: String, clientSecret: String): FoodItem = withContext(Dispatchers.IO) {
@@ -2889,7 +3119,8 @@ class NutritionRepository(private val context: Context) {
                         sodiumMgPer100g = o.optDouble("sodiumMgPer100g", 0.0),
                         potassiumMgPer100g = o.optDouble("potassiumMgPer100g", 0.0),
                         calciumMgPer100g = o.optDouble("calciumMgPer100g", 0.0),
-                        ironMgPer100g = o.optDouble("ironMgPer100g", 0.0)
+                        ironMgPer100g = o.optDouble("ironMgPer100g", 0.0),
+                        cholesterolMgPer100g = o.storedCholesterol()
                     )
                 )
             }
@@ -2916,6 +3147,7 @@ class NutritionRepository(private val context: Context) {
                     .put("potassiumMgPer100g", e.potassiumMgPer100g)
                     .put("calciumMgPer100g", e.calciumMgPer100g)
                     .put("ironMgPer100g", e.ironMgPer100g)
+                    .putCholesterol(e.cholesterolMgPer100g)
                     .put("gramsConsumed", e.gramsConsumed)
             )
         }
@@ -2923,7 +3155,11 @@ class NutritionRepository(private val context: Context) {
     }
 
     suspend fun loadRecentFoods(): List<FoodItem> = withContext(Dispatchers.IO) {
-        loadFoodsFromPrefs("recent_foods_json").take(100)
+        val recipes = loadRecipes().associateBy { it.id }
+        loadFoodsFromPrefs("recent_foods_json").take(100).map { food ->
+            val recipe = if (food.source == FoodSource.RECIPE) recipes[food.id] else null
+            if (recipe != null) resolveRecipeToFood(recipe).copy(lastUsedGrams = food.lastUsedGrams) else food
+        }
     }
 
     suspend fun saveRecentFoods(foods: List<FoodItem>) = withContext(Dispatchers.IO) {
@@ -2942,56 +3178,67 @@ class NutritionRepository(private val context: Context) {
     }
 
     suspend fun rememberManualFood(food: FoodItem): List<FoodItem> = withContext(Dispatchers.IO) {
-        if (food.source != FoodSource.MANUAL) return@withContext loadFoodsFromPrefs("manual_foods_json")
-        val current = loadFoodsFromPrefs("manual_foods_json")
-        val fingerprint = manualFoodFingerprint(food)
-        val updated = current.toMutableList()
-        val existingIndex = updated.indexOfFirst { manualFoodFingerprint(it) == fingerprint }
-        if (existingIndex >= 0) {
-            val existing = updated[existingIndex]
-            updated[existingIndex] = food.copy(id = existing.id)
-        } else {
-            updated.add(0, food)
+        catalogMutex.withLock {
+            if (food.source != FoodSource.MANUAL) return@withLock loadFoodsFromPrefs("manual_foods_json")
+            val current = loadFoodsFromPrefs("manual_foods_json")
+            val fingerprint = manualFoodFingerprint(food)
+            val updated = current.toMutableList()
+            val existingIndex = updated.indexOfFirst {
+                if (isScannedFood(food) || isScannedFood(it)) it.id == food.id
+                else manualFoodFingerprint(it) == fingerprint
+            }
+            if (existingIndex >= 0) {
+                val existing = updated[existingIndex]
+                updated[existingIndex] = food.copy(id = existing.id, nutritionSource = food.nutritionSource.ifBlank { existing.nutritionSource })
+            } else {
+                updated.add(0, food)
+            }
+            saveFoodsToPrefs("manual_foods_json", updated)
+            cacheFoods(listOf(updated[existingIndex.coerceAtLeast(0)]))
+            updated
         }
-        saveFoodsToPrefs("manual_foods_json", updated)
-        cacheFoods(listOf(updated[existingIndex.coerceAtLeast(0)]))
-        updated
     }
 
+
     suspend fun saveRecipes(recipes: List<Recipe>) = withContext(Dispatchers.IO) {
-        val arr = JSONArray()
-        recipes.forEach { recipe ->
-            val ingredientsArr = JSONArray()
-            recipe.ingredients.forEach { ing ->
-                ingredientsArr.put(
+        catalogMutex.withLock {
+            val arr = JSONArray()
+            recipes.forEach { recipe ->
+                val ingredientsArr = JSONArray()
+                recipe.ingredients.forEach { ing ->
+                    ingredientsArr.put(
+                        JSONObject()
+                            .put("foodId", ing.foodId)
+                            .put("foodSource", ing.foodSource.name)
+                            .put("foodDescription", ing.foodDescription)
+                            .put("gramsUsed", ing.gramsUsed)
+                            .put("caloriesPer100g", ing.caloriesPer100g)
+                            .put("proteinPer100g", ing.proteinPer100g)
+                            .put("carbsPer100g", ing.carbsPer100g)
+                            .put("fatPer100g", ing.fatPer100g)
+                            .put("fiberPer100g", ing.fiberPer100g)
+                            .put("sugarPer100g", ing.sugarPer100g)
+                            .put("sodiumMgPer100g", ing.sodiumMgPer100g)
+                            .put("potassiumMgPer100g", ing.potassiumMgPer100g)
+                            .put("calciumMgPer100g", ing.calciumMgPer100g)
+                            .put("ironMgPer100g", ing.ironMgPer100g)
+                            .putCholesterol(ing.cholesterolMgPer100g)
+                    )
+                }
+                arr.put(
                     JSONObject()
-                        .put("foodId", ing.foodId)
-                        .put("foodSource", ing.foodSource.name)
-                        .put("foodDescription", ing.foodDescription)
-                        .put("gramsUsed", ing.gramsUsed)
-                        .put("caloriesPer100g", ing.caloriesPer100g)
-                        .put("proteinPer100g", ing.proteinPer100g)
-                        .put("carbsPer100g", ing.carbsPer100g)
-                        .put("fatPer100g", ing.fatPer100g)
-                        .put("fiberPer100g", ing.fiberPer100g)
-                        .put("sugarPer100g", ing.sugarPer100g)
-                        .put("sodiumMgPer100g", ing.sodiumMgPer100g)
-                        .put("potassiumMgPer100g", ing.potassiumMgPer100g)
-                        .put("calciumMgPer100g", ing.calciumMgPer100g)
-                        .put("ironMgPer100g", ing.ironMgPer100g)
+                        .put("id", recipe.id)
+                        .put("name", recipe.name)
+                        .put("ingredients", ingredientsArr)
+                        .put("createdAtEpochMs", recipe.createdAtEpochMs)
+                        .put("notes", recipe.notes)
+                        .put("finishedWeightGrams", recipe.finishedWeightGrams ?: JSONObject.NULL)
                 )
             }
-            arr.put(
-                JSONObject()
-                    .put("id", recipe.id)
-                    .put("name", recipe.name)
-                    .put("ingredients", ingredientsArr)
-                    .put("createdAtEpochMs", recipe.createdAtEpochMs)
-                    .put("notes", recipe.notes)
-            )
+            prefs.edit().putString("recipes_json", arr.toString()).apply()
         }
-        prefs.edit().putString("recipes_json", arr.toString()).apply()
     }
+
 
     suspend fun loadRecipes(): List<Recipe> = withContext(Dispatchers.IO) {
         val raw = prefs.getString("recipes_json", null) ?: return@withContext emptyList()
@@ -3019,7 +3266,8 @@ class NutritionRepository(private val context: Context) {
                             sodiumMgPer100g = ingObj.optDouble("sodiumMgPer100g", 0.0),
                             potassiumMgPer100g = ingObj.optDouble("potassiumMgPer100g", 0.0),
                             calciumMgPer100g = ingObj.optDouble("calciumMgPer100g", 0.0),
-                            ironMgPer100g = ingObj.optDouble("ironMgPer100g", 0.0)
+                            ironMgPer100g = ingObj.optDouble("ironMgPer100g", 0.0),
+                            cholesterolMgPer100g = ingObj.storedCholesterol()
                         )
                     )
                 }
@@ -3029,7 +3277,8 @@ class NutritionRepository(private val context: Context) {
                         name = o.getString("name"),
                         ingredients = ingredients,
                         createdAtEpochMs = o.getLong("createdAtEpochMs"),
-                        notes = o.optString("notes", "")
+                        notes = o.optString("notes", ""),
+                        finishedWeightGrams = o.optDouble("finishedWeightGrams", Double.NaN).takeIf { it.isFinite() && it > 0 }
                     )
                 )
             }
@@ -3059,155 +3308,53 @@ class NutritionRepository(private val context: Context) {
     }
 
     suspend fun importBackupFromUri(uri: Uri) = withContext(Dispatchers.IO) {
-        val raw = context.contentResolver.openInputStream(uri)?.use { stream ->
-            BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { it.readText() }
-        } ?: throw IllegalStateException("Unable to open selected file for import")
+        catalogMutex.withLock {
+            val raw = context.contentResolver.openInputStream(uri)?.use { stream ->
+                BufferedReader(InputStreamReader(stream, StandardCharsets.UTF_8)).use { it.readText() }
+            } ?: throw IllegalStateException("Unable to open selected file for import")
 
-        val json = JSONObject(raw)
-        val schemaVersion = json.optInt("schemaVersion", 1)
-        if (schemaVersion != 1) {
-            throw IllegalStateException("Unsupported backup version: $schemaVersion")
+            val json = JSONObject(raw)
+            val schemaVersion = json.optInt("schemaVersion", 1)
+            if (schemaVersion != 1) {
+                throw IllegalStateException("Unsupported backup version: $schemaVersion")
+            }
+
+            val profileJson = json.opt("profile_json")?.takeIf { it != JSONObject.NULL }?.toString()
+            val entriesJson = json.opt("entries_json")?.takeIf { it != JSONObject.NULL }?.toString()
+            val foodsCacheJson = json.opt("foods_cache_json")?.takeIf { it != JSONObject.NULL }?.toString()
+            val manualFoodsJson = json.opt("manual_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
+            val recentFoodsJson = json.opt("recent_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
+            val recipesJson = json.opt("recipes_json")?.takeIf { it != JSONObject.NULL }?.toString()
+
+            validateJsonString(profileJson, isArray = false)
+            validateJsonString(entriesJson, isArray = true)
+            validateJsonString(foodsCacheJson, isArray = true)
+            validateJsonString(manualFoodsJson, isArray = true)
+            validateJsonString(recentFoodsJson, isArray = true)
+            validateJsonString(recipesJson, isArray = true)
+
+            prefs.edit()
+                .remove("catalog_baseline_json")
+                .remove("catalog_last_sync")
+                .putString("profile_json", profileJson)
+                .putString("entries_json", entriesJson)
+                .putString("foods_cache_json", foodsCacheJson)
+                .putString("manual_foods_json", manualFoodsJson)
+                .putString("recent_foods_json", recentFoodsJson)
+                .putString("recipes_json", recipesJson)
+                .apply()
         }
-
-        val profileJson = json.opt("profile_json")?.takeIf { it != JSONObject.NULL }?.toString()
-        val entriesJson = json.opt("entries_json")?.takeIf { it != JSONObject.NULL }?.toString()
-        val foodsCacheJson = json.opt("foods_cache_json")?.takeIf { it != JSONObject.NULL }?.toString()
-        val manualFoodsJson = json.opt("manual_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
-        val recentFoodsJson = json.opt("recent_foods_json")?.takeIf { it != JSONObject.NULL }?.toString()
-        val recipesJson = json.opt("recipes_json")?.takeIf { it != JSONObject.NULL }?.toString()
-
-        validateJsonString(profileJson, isArray = false)
-        validateJsonString(entriesJson, isArray = true)
-        validateJsonString(foodsCacheJson, isArray = true)
-        validateJsonString(manualFoodsJson, isArray = true)
-        validateJsonString(recentFoodsJson, isArray = true)
-        validateJsonString(recipesJson, isArray = true)
-
-        prefs.edit()
-            .putString("profile_json", profileJson)
-            .putString("entries_json", entriesJson)
-            .putString("foods_cache_json", foodsCacheJson)
-            .putString("manual_foods_json", manualFoodsJson)
-            .putString("recent_foods_json", recentFoodsJson)
-            .putString("recipes_json", recipesJson)
-            .apply()
     }
 
+
     suspend fun resolveFoodWithCompleteMacros(food: FoodItem, usdaApiKey: String): FoodItem = withContext(Dispatchers.IO) {
-        if (!food.nutrientsLikelyMissing()) return@withContext food
+        if (!food.nutrientsLikelyMissing() && food.cholesterolMgPer100g != null) return@withContext food
         if (food.source != FoodSource.USDA || usdaApiKey.isBlank()) return@withContext food
         fetchUsdaFoodById(food.id, usdaApiKey) ?: food
     }
 
     suspend fun resolveRecipeToFood(recipe: Recipe): FoodItem = withContext(Dispatchers.IO) {
-        val cachedFoods = mutableMapOf<Pair<String, FoodSource>, FoodItem>()
-        val raw = prefs.getString("foods_cache_json", null)
-        if (raw != null) {
-            val arr = JSONArray(raw)
-            for (i in 0 until arr.length()) {
-                val o = arr.optJSONObject(i) ?: continue
-                val source = FoodSource.entries.firstOrNull { it.name == o.optString("source", FoodSource.USDA.name) } ?: FoodSource.USDA
-                val id = o.optString("id", o.optLong("fdcId", -1L).toString())
-                if (id.isNotBlank() && id != "-1") {
-                    val food = FoodItem(
-                        id = id,
-                        source = source,
-                        description = o.optString("description"),
-                        brand = o.optString("brand"),
-                        caloriesPer100g = o.optDouble("caloriesPer100g", o.optDouble("calories", 0.0)),
-                        proteinPer100g = o.optDouble("proteinPer100g", 0.0),
-                        carbsPer100g = o.optDouble("carbsPer100g", 0.0),
-                        fatPer100g = o.optDouble("fatPer100g", 0.0),
-                        fiberPer100g = o.optDouble("fiberPer100g", 0.0),
-                        sugarPer100g = o.optDouble("sugarPer100g", 0.0),
-                        sodiumMgPer100g = o.optDouble("sodiumMgPer100g", 0.0),
-                        potassiumMgPer100g = o.optDouble("potassiumMgPer100g", 0.0),
-                        calciumMgPer100g = o.optDouble("calciumMgPer100g", 0.0),
-                        ironMgPer100g = o.optDouble("ironMgPer100g", 0.0)
-                    )
-                    cachedFoods[id to source] = food
-                }
-            }
-        }
-        
-        val totalGramsInRecipe = recipe.ingredients.sumOf { it.gramsUsed }
-        if (totalGramsInRecipe == 0.0) {
-            return@withContext FoodItem(
-                id = recipe.id,
-                source = FoodSource.RECIPE,
-                description = recipe.name,
-                brand = "",
-                caloriesPer100g = 0.0,
-                proteinPer100g = 0.0,
-                carbsPer100g = 0.0,
-                fatPer100g = 0.0
-            )
-        }
-        
-        var totalCalories = 0.0
-        var totalProtein = 0.0
-        var totalCarbs = 0.0
-        var totalFat = 0.0
-        var totalFiber = 0.0
-        var totalSugar = 0.0
-        var totalSodiumMg = 0.0
-        var totalPotassiumMg = 0.0
-        var totalCalciumMg = 0.0
-        var totalIronMg = 0.0
-        
-        for (ingredient in recipe.ingredients) {
-            val food = cachedFoods[ingredient.foodId to ingredient.foodSource]
-            val sourceMacros = if (food != null) {
-                food
-            } else {
-                FoodItem(
-                    id = ingredient.foodId,
-                    source = ingredient.foodSource,
-                    description = ingredient.foodDescription,
-                    brand = "",
-                    caloriesPer100g = ingredient.caloriesPer100g,
-                    proteinPer100g = ingredient.proteinPer100g,
-                    carbsPer100g = ingredient.carbsPer100g,
-                    fatPer100g = ingredient.fatPer100g,
-                    fiberPer100g = ingredient.fiberPer100g,
-                    sugarPer100g = ingredient.sugarPer100g,
-                    sodiumMgPer100g = ingredient.sodiumMgPer100g,
-                    potassiumMgPer100g = ingredient.potassiumMgPer100g,
-                    calciumMgPer100g = ingredient.calciumMgPer100g,
-                    ironMgPer100g = ingredient.ironMgPer100g
-                )
-            }
-            val multiplier = ingredient.gramsUsed / 100.0
-            totalCalories += sourceMacros.caloriesPer100g * multiplier
-            totalProtein += sourceMacros.proteinPer100g * multiplier
-            totalCarbs += sourceMacros.carbsPer100g * multiplier
-            totalFat += sourceMacros.fatPer100g * multiplier
-            totalFiber += sourceMacros.fiberPer100g * multiplier
-            totalSugar += sourceMacros.sugarPer100g * multiplier
-            totalSodiumMg += sourceMacros.sodiumMgPer100g * multiplier
-            totalPotassiumMg += sourceMacros.potassiumMgPer100g * multiplier
-            totalCalciumMg += sourceMacros.calciumMgPer100g * multiplier
-            totalIronMg += sourceMacros.ironMgPer100g * multiplier
-        }
-        
-        // Convert totals to per 100g
-        val divisor = totalGramsInRecipe / 100.0
-        return@withContext FoodItem(
-            id = recipe.id,
-            source = FoodSource.RECIPE,
-            description = recipe.name,
-            brand = "",
-            caloriesPer100g = totalCalories / divisor,
-            proteinPer100g = totalProtein / divisor,
-            carbsPer100g = totalCarbs / divisor,
-            fatPer100g = totalFat / divisor,
-            fiberPer100g = totalFiber / divisor,
-            sugarPer100g = totalSugar / divisor,
-            sodiumMgPer100g = totalSodiumMg / divisor,
-            potassiumMgPer100g = totalPotassiumMg / divisor,
-            calciumMgPer100g = totalCalciumMg / divisor,
-            ironMgPer100g = totalIronMg / divisor
-        )
+        recipeToFood(recipe)
     }
 
     suspend fun enrichEntriesIfMissingMacros(
@@ -3229,7 +3376,8 @@ class NutritionRepository(private val context: Context) {
                         sodiumMgPer100g = fetched.sodiumMgPer100g,
                         potassiumMgPer100g = fetched.potassiumMgPer100g,
                         calciumMgPer100g = fetched.calciumMgPer100g,
-                        ironMgPer100g = fetched.ironMgPer100g
+                        ironMgPer100g = fetched.ironMgPer100g,
+                        cholesterolMgPer100g = entry.cholesterolMgPer100g ?: fetched.cholesterolMgPer100g
                     )
                 } else {
                     entry
@@ -3283,7 +3431,8 @@ class NutritionRepository(private val context: Context) {
                         sodiumMgPer100g = extractUsdaPer100g(o, "307", "Sodium", "sodium"),
                         potassiumMgPer100g = extractUsdaPer100g(o, "306", "Potassium", "potassium"),
                         calciumMgPer100g = extractUsdaPer100g(o, "301", "Calcium", "calcium"),
-                        ironMgPer100g = extractUsdaPer100g(o, "303", "Iron", "iron")
+                        ironMgPer100g = extractUsdaPer100g(o, "303", "Iron", "iron"),
+                        cholesterolMgPer100g = usdaCholesterol(o)
                     )
                 )
             }
@@ -3308,7 +3457,8 @@ class NutritionRepository(private val context: Context) {
             sodiumMgPer100g = extractUsdaPer100g(root, "307", "Sodium", "sodium"),
             potassiumMgPer100g = extractUsdaPer100g(root, "306", "Potassium", "potassium"),
             calciumMgPer100g = extractUsdaPer100g(root, "301", "Calcium", "calcium"),
-            ironMgPer100g = extractUsdaPer100g(root, "303", "Iron", "iron")
+            ironMgPer100g = extractUsdaPer100g(root, "303", "Iron", "iron"),
+            cholesterolMgPer100g = usdaCholesterol(root)
         )
     }
 
@@ -3371,7 +3521,8 @@ class NutritionRepository(private val context: Context) {
             sodiumMgPer100g = num("sodium"),
             potassiumMgPer100g = num("potassium"),
             calciumMgPer100g = num("calcium"),
-            ironMgPer100g = num("iron")
+            ironMgPer100g = num("iron"),
+            cholesterolMgPer100g = fatSecretCholesterol(s)
         )
     }
 
@@ -3504,6 +3655,7 @@ class NutritionRepository(private val context: Context) {
                         source = source,
                         description = o.optString("description"),
                         brand = o.optString("brand"),
+                        nutritionSource = o.optString("nutritionSource", ""),
                         caloriesPer100g = o.optDouble("caloriesPer100g", o.optDouble("calories", 0.0)),
                         proteinPer100g = o.optDouble("proteinPer100g", 0.0),
                         carbsPer100g = o.optDouble("carbsPer100g", 0.0),
@@ -3514,6 +3666,7 @@ class NutritionRepository(private val context: Context) {
                         potassiumMgPer100g = o.optDouble("potassiumMgPer100g", 0.0),
                         calciumMgPer100g = o.optDouble("calciumMgPer100g", 0.0),
                         ironMgPer100g = o.optDouble("ironMgPer100g", 0.0),
+                        cholesterolMgPer100g = o.storedCholesterol(),
                         lastUsedGrams = o.optDouble("lastUsedGrams", Double.NaN).takeIf { it.isFinite() && it > 0.0 }
                     )
                 )
@@ -3530,6 +3683,7 @@ class NutritionRepository(private val context: Context) {
                     .put("source", e.source.name)
                     .put("description", e.description)
                     .put("brand", e.brand)
+                    .put("nutritionSource", e.nutritionSource)
                     .put("caloriesPer100g", e.caloriesPer100g)
                     .put("proteinPer100g", e.proteinPer100g)
                     .put("carbsPer100g", e.carbsPer100g)
@@ -3540,6 +3694,7 @@ class NutritionRepository(private val context: Context) {
                     .put("potassiumMgPer100g", e.potassiumMgPer100g)
                     .put("calciumMgPer100g", e.calciumMgPer100g)
                     .put("ironMgPer100g", e.ironMgPer100g)
+                    .putCholesterol(e.cholesterolMgPer100g)
                     .put("lastUsedGrams", e.lastUsedGrams?.takeIf { it.isFinite() && it > 0.0 })
             )
         }
@@ -3571,11 +3726,13 @@ class NutritionRepository(private val context: Context) {
             append("%.3f".format(Locale.ROOT, food.calciumMgPer100g))
             append("|")
             append("%.3f".format(Locale.ROOT, food.ironMgPer100g))
+            append("|")
+            append(food.cholesterolMgPer100g?.let { "%.3f".format(Locale.ROOT, it) } ?: "unknown")
         }
     }
 
     private fun recentFoodSignature(food: FoodItem): String {
-        return if (food.source == FoodSource.MANUAL) {
+        return if (food.source == FoodSource.MANUAL && !isScannedFood(food)) {
             "MANUAL|${manualFoodFingerprint(food)}"
         } else {
             "${food.source.name}|${food.id}"
@@ -3610,7 +3767,8 @@ class NutritionRepository(private val context: Context) {
                     sodiumMgPer100g = o.optDouble("sodiumMgPer100g", 0.0),
                     potassiumMgPer100g = o.optDouble("potassiumMgPer100g", 0.0),
                     calciumMgPer100g = o.optDouble("calciumMgPer100g", 0.0),
-                    ironMgPer100g = o.optDouble("ironMgPer100g", 0.0)
+                    ironMgPer100g = o.optDouble("ironMgPer100g", 0.0),
+                    cholesterolMgPer100g = o.storedCholesterol()
                 )
                 existing["${item.source.name}:${item.id}"] = item
             }
@@ -3645,6 +3803,7 @@ class NutritionRepository(private val context: Context) {
                     .put("potassiumMgPer100g", e.potassiumMgPer100g)
                     .put("calciumMgPer100g", e.calciumMgPer100g)
                     .put("ironMgPer100g", e.ironMgPer100g)
+                    .putCholesterol(e.cholesterolMgPer100g)
             )
         }
         prefs.edit().putString("foods_cache_json", out.toString()).apply()

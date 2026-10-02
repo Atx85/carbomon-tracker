@@ -1,8 +1,83 @@
 package com.example.carbomon
 
 // Generic per-100g foods, not retailer-specific products. Source codes and units
-// are preserved from CoFID 2021; see docs/food-data-sources.md for attribution.
+// are preserved from CoFID 2021 and USDA SR; see docs/food-data-sources.md.
 internal val stapleFoods: List<FoodItem> = listOf(
+    // CoFID 14-318: Bananas, flesh only
+    FoodItem(
+        id = "cofid-14-318", source = FoodSource.GENERIC,
+        description = "Bananas, raw, peeled", brand = "CoFID 2021",
+        caloriesPer100g = 81.0,
+        proteinPer100g = 1.2,
+        carbsPer100g = 20.3,
+        fatPer100g = 0.1,
+        fiberPer100g = 1.4,
+        sugarPer100g = 18.1,
+        sodiumMgPer100g = 0.0,
+        potassiumMgPer100g = 330.0,
+        calciumMgPer100g = 6.0,
+        ironMgPer100g = 0.27,
+        cholesterolMgPer100g = 0.0
+    ),
+    // CoFID 13-524: Pepper, capsicum, red, raw
+    FoodItem(
+        id = "cofid-13-524", source = FoodSource.GENERIC,
+        description = "Red bell peppers (fresh paprika), raw", brand = "CoFID 2021",
+        caloriesPer100g = 21.0,
+        proteinPer100g = 0.8,
+        carbsPer100g = 4.3,
+        fatPer100g = 0.2,
+        fiberPer100g = 2.2,
+        sugarPer100g = 4.2,
+        sodiumMgPer100g = 1.0,
+        potassiumMgPer100g = 216.0,
+        calciumMgPer100g = 7.0,
+        ironMgPer100g = 0.39,
+        cholesterolMgPer100g = 0.0
+    ),
+    // CoFID 13-526: Pepper, capsicum, yellow, raw
+    FoodItem(
+        id = "cofid-13-526", source = FoodSource.GENERIC,
+        description = "Yellow bell peppers (fresh paprika), raw", brand = "CoFID 2021",
+        caloriesPer100g = 23.0,
+        proteinPer100g = 0.8,
+        carbsPer100g = 4.6,
+        fatPer100g = 0.2,
+        fiberPer100g = 2.2,
+        sugarPer100g = 4.4,
+        sodiumMgPer100g = 1.0,
+        potassiumMgPer100g = 189.0,
+        calciumMgPer100g = 7.0,
+        ironMgPer100g = 0.48,
+        cholesterolMgPer100g = 0.0
+    ),
+    // CoFID 13-318: Peppers, capsicum, green, raw
+    FoodItem(
+        id = "cofid-13-318", source = FoodSource.GENERIC,
+        description = "Green bell peppers (fresh paprika), raw", brand = "CoFID 2021",
+        caloriesPer100g = 15.0,
+        proteinPer100g = 0.8,
+        carbsPer100g = 2.6,
+        fatPer100g = 0.3,
+        fiberPer100g = 0.0,
+        sugarPer100g = 2.4,
+        sodiumMgPer100g = 4.0,
+        potassiumMgPer100g = 120.0,
+        calciumMgPer100g = 8.0,
+        ironMgPer100g = 0.4,
+        cholesterolMgPer100g = 0.0
+    ),
+    // USDA SR28, NDB 02028: Spices, paprika. Total carbohydrate includes fibre.
+    FoodItem(
+        id = "usda-sr28-02028", source = FoodSource.GENERIC,
+        description = "Paprika, ground spice powder", brand = "USDA SR",
+        caloriesPer100g = 282.0, proteinPer100g = 14.14,
+        carbsPer100g = 53.99, fatPer100g = 12.89,
+        fiberPer100g = 34.9, sugarPer100g = 10.34,
+        sodiumMgPer100g = 68.0, potassiumMgPer100g = 2280.0,
+        calciumMgPer100g = 229.0, ironMgPer100g = 21.14,
+        cholesterolMgPer100g = 0.0
+    ),
     // CoFID 17-010: Lard
     FoodItem(
         id = "cofid-17-010", source = FoodSource.GENERIC,
@@ -16,7 +91,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 2.0,
         potassiumMgPer100g = 1.0,
         calciumMgPer100g = 1.0,
-        ironMgPer100g = 0.1
+        ironMgPer100g = 0.1,
+        cholesterolMgPer100g = 93.0
     ),
     // CoFID 18-290: Chicken, light meat, raw
     FoodItem(
@@ -31,7 +107,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 60.0,
         potassiumMgPer100g = 370.0,
         calciumMgPer100g = 5.0,
-        ironMgPer100g = 0.5
+        ironMgPer100g = 0.5,
+        cholesterolMgPer100g = 70.0
     ),
     // CoFID 18-323: Chicken, breast, grilled without skin, meat only
     FoodItem(
@@ -46,7 +123,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 55.0,
         potassiumMgPer100g = 460.0,
         calciumMgPer100g = 6.0,
-        ironMgPer100g = 0.4
+        ironMgPer100g = 0.4,
+        cholesterolMgPer100g = 94.0
     ),
     // CoFID 18-469: Beef, mince, raw
     FoodItem(
@@ -61,7 +139,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 80.0,
         potassiumMgPer100g = 260.0,
         calciumMgPer100g = 9.0,
-        ironMgPer100g = 1.4
+        ironMgPer100g = 1.4,
+        cholesterolMgPer100g = 60.0
     ),
     // CoFID 18-508: Beef, mince, raw, extra lean
     FoodItem(
@@ -76,7 +155,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 90.0,
         potassiumMgPer100g = 290.0,
         calciumMgPer100g = 10.0,
-        ironMgPer100g = 1.5
+        ironMgPer100g = 1.5,
+        cholesterolMgPer100g = 37.0
     ),
     // CoFID 18-606: Pork, mince, raw
     FoodItem(
@@ -91,7 +171,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 66.0,
         potassiumMgPer100g = 390.0,
         calciumMgPer100g = 7.0,
-        ironMgPer100g = 0.9
+        ironMgPer100g = 0.9,
+        cholesterolMgPer100g = 66.0
     ),
     // CoFID 18-607: Pork, mince, stewed
     FoodItem(
@@ -106,7 +187,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 61.0,
         potassiumMgPer100g = 320.0,
         calciumMgPer100g = 13.0,
-        ironMgPer100g = 1.4
+        ironMgPer100g = 1.4,
+        cholesterolMgPer100g = 81.0
     ),
     // CoFID 11-716: Pasta, white, dried, raw
     FoodItem(
@@ -121,7 +203,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 2.0,
         potassiumMgPer100g = 232.0,
         calciumMgPer100g = 24.0,
-        ironMgPer100g = 1.59
+        ironMgPer100g = 1.59,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-1129: Pasta, white, dried, boiled in unsalted water
     FoodItem(
@@ -136,7 +219,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 1.0,
         potassiumMgPer100g = 114.0,
         calciumMgPer100g = 12.0,
-        ironMgPer100g = 0.78
+        ironMgPer100g = 0.78,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-718: Pasta, wholewheat, spaghetti, dried, raw
     FoodItem(
@@ -151,7 +235,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 3.0,
         potassiumMgPer100g = 426.0,
         calciumMgPer100g = 39.0,
-        ironMgPer100g = 3.25
+        ironMgPer100g = 3.25,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-723: Pasta, wholewheat, spaghetti, dried, boiled in unsalted water
     FoodItem(
@@ -166,7 +251,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 5.0,
         potassiumMgPer100g = 82.0,
         calciumMgPer100g = 31.0,
-        ironMgPer100g = 1.48
+        ironMgPer100g = 1.48,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-722: Pasta, white, spaghetti, dried, boiled in unsalted water
     FoodItem(
@@ -181,7 +267,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 3.0,
         potassiumMgPer100g = 41.0,
         calciumMgPer100g = 27.0,
-        ironMgPer100g = 0.63
+        ironMgPer100g = 0.63,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-720: Pasta, white,  twists, fusilli, dried, boiled in unsalted water
     FoodItem(
@@ -196,7 +283,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 5.0,
         potassiumMgPer100g = 40.0,
         calciumMgPer100g = 25.0,
-        ironMgPer100g = 0.71
+        ironMgPer100g = 0.71,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-857: Rice, white, basmati, raw
     FoodItem(
@@ -211,7 +299,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 1.0,
         potassiumMgPer100g = 77.0,
         calciumMgPer100g = 10.0,
-        ironMgPer100g = 1.73
+        ironMgPer100g = 1.73,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 11-788: Porridge oats, unfortified
     FoodItem(
@@ -226,7 +315,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 1.0,
         potassiumMgPer100g = 372.0,
         calciumMgPer100g = 50.0,
-        ironMgPer100g = 3.64
+        ironMgPer100g = 3.64,
+        cholesterolMgPer100g = 0.3
     ),
     // CoFID 12-937: Eggs, chicken, whole, raw
     FoodItem(
@@ -241,7 +331,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 154.0,
         potassiumMgPer100g = 145.0,
         calciumMgPer100g = 46.0,
-        ironMgPer100g = 1.72
+        ironMgPer100g = 1.72,
+        cholesterolMgPer100g = 350.0
     ),
     // CoFID 17-038: Oil, olive
     FoodItem(
@@ -256,7 +347,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 0.0,
         potassiumMgPer100g = 0.0,
         calciumMgPer100g = 0.0,
-        ironMgPer100g = 0.4
+        ironMgPer100g = 0.4,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 17-685: Butter, salted
     FoodItem(
@@ -271,7 +363,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 730.0,
         potassiumMgPer100g = 27.0,
         calciumMgPer100g = 18.0,
-        ironMgPer100g = 0.0
+        ironMgPer100g = 0.0,
+        cholesterolMgPer100g = 213.2
     ),
     // CoFID 13-489: Potatoes, old, raw, flesh only
     FoodItem(
@@ -286,7 +379,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 2.0,
         potassiumMgPer100g = 443.0,
         calciumMgPer100g = 7.0,
-        ironMgPer100g = 0.32
+        ironMgPer100g = 0.32,
+        cholesterolMgPer100g = 0.0
     ),
     // CoFID 12-313: Milk, semi-skimmed, pasteurised, average
     FoodItem(
@@ -301,7 +395,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         sodiumMgPer100g = 43.0,
         potassiumMgPer100g = 156.0,
         calciumMgPer100g = 120.0,
-        ironMgPer100g = 0.02
+        ironMgPer100g = 0.02,
+        cholesterolMgPer100g = 5.9
     ),
     // USDA SR28, NDB 10973; FDC SR Legacy 169190.
     FoodItem(
@@ -311,7 +406,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         carbsPer100g = 0.21, fatPer100g = 4.0,
         fiberPer100g = 0.0, sugarPer100g = 0.0,
         sodiumMgPer100g = 67.0, potassiumMgPer100g = 310.0,
-        calciumMgPer100g = 15.0, ironMgPer100g = 0.86
+        calciumMgPer100g = 15.0, ironMgPer100g = 0.86,
+        cholesterolMgPer100g = 59.0
     ),
     // USDA SR28, NDB 10972; FDC SR Legacy 168372.
     FoodItem(
@@ -321,7 +417,8 @@ internal val stapleFoods: List<FoodItem> = listOf(
         carbsPer100g = 0.44, fatPer100g = 16.0,
         fiberPer100g = 0.0, sugarPer100g = 0.0,
         sodiumMgPer100g = 68.0, potassiumMgPer100g = 244.0,
-        calciumMgPer100g = 15.0, ironMgPer100g = 0.88
+        calciumMgPer100g = 15.0, ironMgPer100g = 0.88,
+        cholesterolMgPer100g = 68.0
     ),
     // USDA SR27, NDB 23567; FDC SR Legacy 171796.
     FoodItem(
@@ -331,6 +428,7 @@ internal val stapleFoods: List<FoodItem> = listOf(
         carbsPer100g = 0.0, fatPer100g = 15.0,
         fiberPer100g = 0.0, sugarPer100g = 0.0,
         sodiumMgPer100g = 66.0, potassiumMgPer100g = 295.0,
-        calciumMgPer100g = 15.0, ironMgPer100g = 2.09
+        calciumMgPer100g = 15.0, ironMgPer100g = 2.09,
+        cholesterolMgPer100g = 68.0
     )
 )

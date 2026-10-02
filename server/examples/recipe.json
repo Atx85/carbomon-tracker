@@ -1,0 +1,39 @@
+{
+  "name": "Example porridge",
+  "notes": "Replace example nutrition with your ingredient labels. Add cooking instructions here.",
+  "finishedWeightGrams": 250,
+  "ingredients": [
+    {
+      "foodDescription": "Example rolled oats",
+      "foodSource": "MANUAL",
+      "gramsUsed": 50,
+      "caloriesPer100g": 370,
+      "proteinPer100g": 13,
+      "carbsPer100g": 60,
+      "fatPer100g": 7,
+      "fiberPer100g": 10,
+      "sugarPer100g": 1,
+      "sodiumMgPer100g": 5,
+      "potassiumMgPer100g": 350,
+      "calciumMgPer100g": 50,
+      "ironMgPer100g": 4,
+      "cholesterolMgPer100g": null
+    },
+    {
+      "foodDescription": "Water",
+      "foodSource": "MANUAL",
+      "gramsUsed": 200,
+      "caloriesPer100g": 0,
+      "proteinPer100g": 0,
+      "carbsPer100g": 0,
+      "fatPer100g": 0,
+      "fiberPer100g": 0,
+      "sugarPer100g": 0,
+      "sodiumMgPer100g": 0,
+      "potassiumMgPer100g": 0,
+      "calciumMgPer100g": 0,
+      "ironMgPer100g": 0,
+      "cholesterolMgPer100g": 0
+    }
+  ]
+}

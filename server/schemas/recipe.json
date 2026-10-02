@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Recipe with self-contained ingredient nutrition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "ingredients"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 20000
+    },
+    "createdAtEpochMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "finishedWeightGrams": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "exclusiveMinimum": 0,
+      "maximum": 1000000
+    },
+    "ingredients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "foodDescription",
+          "gramsUsed",
+          "caloriesPer100g",
+          "proteinPer100g",
+          "carbsPer100g",
+          "fatPer100g"
+        ],
+        "properties": {
+          "foodId": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "foodSource": {
+            "enum": [
+              "USDA",
+              "FATSECRET",
+              "OPENFOODFACTS",
+              "MANUAL",
+              "RECIPE",
+              "GENERIC"
+            ]
+          },
+          "foodDescription": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "gramsUsed": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000000
+          },
+          "caloriesPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "proteinPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "carbsPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "fatPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "fiberPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "sugarPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "sodiumMgPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "potassiumMgPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "calciumMgPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "ironMgPer100g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "cholesterolMgPer100g": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100000
+          }
+        }
+      }
+    }
+  }
+}

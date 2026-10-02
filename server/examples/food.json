@@ -1,0 +1,16 @@
+{
+  "description": "Example rolled oats",
+  "brand": "",
+  "nutritionSource": "Example only \u2014 replace with package label values.",
+  "caloriesPer100g": 370,
+  "proteinPer100g": 13,
+  "carbsPer100g": 60,
+  "fatPer100g": 7,
+  "fiberPer100g": 10,
+  "sugarPer100g": 1,
+  "sodiumMgPer100g": 5,
+  "potassiumMgPer100g": 350,
+  "calciumMgPer100g": 50,
+  "ironMgPer100g": 4,
+  "cholesterolMgPer100g": null
+}

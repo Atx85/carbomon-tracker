@@ -18,6 +18,16 @@ class FoodSearchTest {
     }
 
     @Test
+    fun bananasAndBothKindsOfPaprikaAreSearchableOffline() {
+        assertEquals("cofid-14-318", searchLocalFoods("banana", stapleFoods).single().id)
+        assertEquals(3, searchLocalFoods("fresh paprika", stapleFoods).size)
+        assertEquals(3, searchLocalFoods("bell peppers", stapleFoods).size)
+        assertEquals("usda-sr28-02028", searchLocalFoods("ground paprika", stapleFoods).single().id)
+        assertEquals(4, searchLocalFoods("paprika", stapleFoods).size)
+        assertTrue(searchLocalFoods("Lidl paprika", stapleFoods).isEmpty())
+    }
+
+    @Test
     fun fatPercentagesDoNotCrossMatch() {
         val lean = pork.copy(id = "lean", description = "Pork mince, 5% fat, raw", fatPer100g = 5.0)
         assertEquals(listOf(lean), searchLocalFoods("pork 5%", listOf(pork, lean)))

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CarboMon catalogue</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body><main>
+<header><p class="eyebrow">CARBOMON · LOCAL CATALOGUE</p><h1>Foods worth keeping.</h1><p>Add foods and recipes here, then sync them with your phone.</p></header>
+<section><h2>Connect</h2><label for="key">Server access key</label><div class="row"><input id="key" type="password" autocomplete="off" placeholder="From data/access-key.txt"><button id="connect">Connect</button></div><p class="hint">The key stays in this page’s memory. Use the same address and key in the app’s Setup screen.</p></section>
+<section><h2 id="editor-title">Add to the catalogue</h2><label for="kind">Entry type</label><select id="kind"><option value="food">Food</option><option value="recipe">Recipe</option></select>
+<div class="row"><button id="example" class="secondary">Load example list</button><button id="prompt" class="secondary">Show AI prompt</button><a id="schema" href="/api/v1/schemas/food" target="_blank" rel="noopener">View JSON schema</a></div>
+<p>Paste one JSON object or a list of objects from your chosen AI, or write it yourself. Lists can contain up to 1,000 foods or 1,000 recipes. Check nutrition against the ingredient labels before saving. Energy is kcal, macros are grams, minerals and cholesterol are milligrams, all per 100 g.</p><p class="hint">Optional nutrients omitted from JSON default to zero, except cholesterol which stays unknown. For accurate tracking, enter known label values. Recipes can include their finished cooked weight.</p>
+<label for="json">Food or recipe JSON</label><textarea id="json" rows="15" spellcheck="false"></textarea>
+<div class="row"><button id="validate" class="secondary">Validate &amp; preview</button><button id="save" disabled>Save</button><button id="cancel" class="secondary" hidden>Cancel edit</button></div><div id="preview" hidden></div><label id="prompt-label" for="ai-prompt" hidden>Copy this prompt into your AI</label><textarea id="ai-prompt" rows="10" readonly hidden></textarea></section>
+<p id="status" role="status" aria-live="polite">Enter your access key to connect.</p>
+<section><div class="row"><h2>Shared catalogue</h2><button id="refresh" class="secondary">Refresh</button></div><label for="filter">Find a food or recipe</label><input id="filter" type="search" placeholder="Search by name or brand"><p id="count" class="hint"></p><div id="catalogue"></div></section>
+</main></body></html>

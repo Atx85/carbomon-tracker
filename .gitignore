@@ -17,3 +17,13 @@ local.properties
 # Local logs
 build.log
 .idea/
+
+# Private Android signing keys and generated installers
+*.keystore
+*.jks
+*.apk
+
+# Local catalogue server data and compiled binaries
+/server/data/
+/server/dist/
+/.kotlin/

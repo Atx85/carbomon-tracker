@@ -29,6 +29,7 @@ Keep the existing app installed and export a backup from its settings before any
 - Offline generic staples and searchable personal products, including saved Lidl UK labels
 - Recipe ingredient support
 - Macro and micronutrient tracking
+- Dietary cholesterol in mg, including portion amounts and daily/weekly totals
 - Local backup import/export
 - Multi-language UI support
 
@@ -39,11 +40,19 @@ Keep the existing app installed and export a backup from its settings before any
 
 ## Your own foods and basic staples
 
-Name searches in the diary and recipe builder include your saved foods first, followed by 23 built-in generic staples and API results. Staples include lard, raw and cooked chicken, raw 15% fat beef mince, pork mince, dry and cooked pasta, rice, oats and eggs. They work without an API key.
+Name searches in the diary and recipe builder include your saved foods first, followed by 28 built-in generic staples and API results. Staples include bananas, raw red/yellow/green bell peppers (fresh paprika), ground paprika spice, lard, raw and cooked chicken, raw 15% fat beef mince, pork mince, dry and cooked pasta, rice, oats and eggs. They work without an API key. Search `paprika` for both fresh peppers and spice, or `fresh paprika` / `ground paprika` to distinguish them.
 
 For an exact Lidl UK product, enter its name, brand and per-100-g label values under **Manual**, then choose **Save to my foods**. You can save it without logging a meal and later search by name, brand or both, such as `Lidl pork mince 15%`. Keep different fat percentages as separate products. Manual recipe ingredients are also saved for reuse.
 
 Generic staples are clearly labelled and may differ from a particular package. See [food data sources](docs/food-data-sources.md) for provenance and units.
+
+## Cholesterol tracking
+
+Food search results show cholesterol per 100 g, and diary entries show the amount for the portion eaten. Daily and weekly diary totals include cholesterol; the Micronutrients tab shows the selected day. Manual foods and manual recipe ingredients accept an optional **Cholesterol (mg / 100 g)** value.
+
+Leave cholesterol blank when it is unknown; enter zero only when confirmed. Missing values are flagged in totals. Recipes with any unknown ingredient cholesterol remain unknown when logged, while recipe cards show the known subtotal and missing count. Values are retained in saved foods, recent foods, recipes and backups. Older backups still import, with absent cholesterol treated as unknown.
+
+Built-in foods include cholesterol from their documented sources. API lookups use available cholesterol data from USDA, Open Food Facts and FatSecret. This tracks dietary intake in milligrams, without assigning a daily target.
 
 ## Tech Stack
 - Kotlin
@@ -105,3 +114,13 @@ GitHub remote: `git@github.com:Atx85/carbomon-tracker.git`
 
 ## License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Local shared catalogue
+
+The [standalone catalogue server](server/README.md) runs on Windows or Linux without Apache or Node. Its browser page accepts pasted food/recipe JSON, including lists from an LLM, with validation and a preview before saving.
+
+In the app, open **Setup → Shared food and recipe catalogue**, tap **Find server** (or enter its address), enter the access key, and tap **Sync foods and recipes**. Sync shares your saved scanned products, manual foods and recipes in both directions, including edits and recipe deletions. Downloaded entries stay available offline and appear in search. Diary entries and profile information remain on your phone. Concurrent edits require an explicit choice of which version to keep.
+
+Servers also discover each other and automatically collect missing entries on the trusted LAN. Existing versions are preserved; later edits/deletions are not mirrored between servers. To move the original catalogue to another computer, stop it and copy its entire data folder. See the [server guide](server/README.md) for peer-sharing controls and migration instructions.
+
+Successful barcode lookups now save products automatically for offline use and the next catalogue sync. Repeated scans use the saved product, and barcode-based IDs prevent duplicate contributions across phones. Older cached products join sharing when scanned again.
