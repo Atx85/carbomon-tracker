@@ -21,6 +21,10 @@
       "type": "string",
       "maxLength": 500
     },
+    "entryType": {
+      "type": "string",
+      "enum": ["manual", "scanned"]
+    },
     "nutritionSource": {
       "type": "string",
       "maxLength": 2000

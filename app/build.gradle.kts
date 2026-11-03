@@ -8,7 +8,15 @@ val usdaApiKey = providers.gradleProperty("USDA_API_KEY").orElse("").get()
 val fatSecretClientId = providers.gradleProperty("FATSECRET_CLIENT_ID").orElse("").get()
 val fatSecretClientSecret = providers.gradleProperty("FATSECRET_CLIENT_SECRET").orElse("").get()
 
+val catalogImportAssets = tasks.register<Sync>("catalogImportAssets") {
+    from(rootProject.file("server")) {
+        include("schemas/*.json", "examples/*.json")
+    }
+    into(layout.buildDirectory.dir("generated/catalogImportAssets"))
+}
+
 android {
+    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/catalogImportAssets"))
     namespace = "com.example.carbomon"
     compileSdk = 35
 
@@ -77,3 +85,10 @@ dependencies {
     // Use this dependency to bundle the model with your app
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
 }
+
+// Tests exercise the same schemas and examples that ship in the server and APK.
+tasks.withType<Test>().configureEach {
+    systemProperty("carbomon.catalogRoot", rootProject.file("server").absolutePath)
+}
+
+tasks.named("preBuild").configure { dependsOn(catalogImportAssets) }

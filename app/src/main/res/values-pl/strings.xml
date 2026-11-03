@@ -153,7 +153,7 @@
     <string name="cholesterol_known_total">Cholesterol: %1$.1f mg z produktów z danymi</string>
     <string name="cholesterol_missing">Brak danych o cholesterolu dla %1$d produktów; suma jest niepełna.</string>
     <string name="catalog_title">Wspólny katalog żywności i przepisów</string>
-    <string name="catalog_help">Synchronizacja wysyła zeskanowane produkty, ręcznie zapisane produkty i przepisy oraz pobiera zmiany z serwera. Wspólne zmiany i usunięcia przepisów trafią na inne urządzenia przy następnej synchronizacji. Dziennik i profil pozostają na telefonie. Korzystaj wyłącznie w zaufanej sieci lokalnej.</string>
+    <string name="catalog_help">Synchronizacja wysyła zeskanowane produkty z oznaczeniem scanned, ręczne produkty i przepisy. Nowe elementy pobierają się automatycznie. Zmiany i usunięcia istniejących elementów wymagają osobnego potwierdzenia. Dziennik i profil zostają na telefonie. Korzystaj z zaufanej sieci lokalnej.</string>
     <string name="catalog_address">Adres serwera</string>
     <string name="catalog_key">Klucz dostępu do serwera</string>
     <string name="catalog_sync">Synchronizuj produkty i przepisy</string>
@@ -161,9 +161,9 @@
     <string name="catalog_last_sync">Ostatnia synchronizacja: %1$s</string>
     <string name="catalog_synced">Zsynchronizowano. %1$d produktów i %2$d przepisów jest dostępnych offline.</string>
     <string name="catalog_failed">Synchronizacja nie powiodła się: %1$s</string>
-    <string name="catalog_conflict_help">Te wpisy zmieniły się zarówno tutaj, jak i na serwerze. Ta synchronizacja nie zapisała zmian. Wybierz wersję do zachowania dla wymienionych wpisów; druga zostanie zastąpiona.</string>
-    <string name="catalog_keep_local">Zachowaj wersje z telefonu</string>
-    <string name="catalog_keep_server">Zachowaj wersje z serwera</string>
+    <string name="catalog_conflict_help">Zmiany przychodzące czekają poniżej na sprawdzenie. Istniejące elementy pozostają bez zmian do podjęcia decyzji. Nowe elementy zsynchronizowano. Zachowanie wersji z telefonu wysyła ją na serwer.</string>
+    <string name="catalog_keep_local">Zachowaj moją wersję</string>
+    <string name="catalog_keep_server">Potwierdź zmianę przychodzącą</string>
     <string name="catalog_disconnect">Wyczyść połączenie z serwerem</string>
     <string name="catalog_disconnect_help">Produkty i przepisy pozostaną na telefonie. Adres, klucz i historia synchronizacji zostaną wyczyszczone. Ponowne połączenie zaoferuje te wpisy serwerowi.</string>
     <string name="catalog_disconnected">Połączenie wyczyszczone. Produkty i przepisy są nadal dostępne offline.</string>
@@ -184,4 +184,22 @@
     <string name="catalog_key_options">Opcje połączenia</string>
     <string name="catalog_key_help">Potrzebny tylko wtedy, gdy administrator serwera włączył ochronę kluczem.</string>
     <string name="catalog_key_required">Ten serwer wymaga klucza dostępu. Wpisz go poniżej, a następnie ponów synchronizację.</string>
+    <string name="cholesterol_reference_note">Na podstawie dziennej wartości referencyjnej FDA: 300 mg; nie jest to indywidualny limit.</string>
+    <string name="catalog_incoming_delete">Przychodzące usunięcie: %1$s</string>
+    <string name="json_import_title">Importuj produkt lub przepis z JSON</string>
+    <string name="json_import_help">Skopiuj polecenie do dowolnego czatu AI, omów produkt lub przepis, a następnie wklej tutaj JSON. Sprawdź i zapisz offline; zsynchronizuj z serwerem po powrocie do domu.</string>
+    <string name="json_import_kind_food">Wybrano produkt · dotknij, aby wybrać przepis</string>
+    <string name="json_import_kind_recipe">Wybrano przepis · dotknij, aby wybrać produkt</string>
+    <string name="json_import_copy_prompt">Kopiuj polecenie AI i format JSON</string>
+    <string name="json_import_copied">Skopiowano. Wklej do wybranego czatu AI lub przeglądarki.</string>
+    <string name="json_import_paste_label">JSON z czatu</string>
+    <string name="json_import_paste">Wklej ze schowka</string>
+    <string name="json_import_review">Sprawdź i przejrzyj</string>
+    <string name="json_import_preview_count">Sprawdź %1$d nowych elementów</string>
+    <string name="json_import_finished_weight">Masa gotowego przepisu: %1$.1f g</string>
+    <string name="json_import_defaults_note">Wartości dotyczą 100 g. Brakujące opcjonalne składniki przyjmują wartości domyślne katalogu (zero); nieznany cholesterol pozostaje nieznany. Zapis tworzy nowe elementy bez zmian w dzienniku i istniejących elementach.</string>
+    <string name="json_import_save">Zapisz sprawdzone elementy offline</string>
+    <string name="json_import_saving">Zapisywanie…</string>
+    <string name="json_import_saved">Zapisano offline. Produkty są dostępne w wyszukiwaniu po nazwie, a przepisy w zakładce Przepisy. W domu zsynchronizuj je z serwerem.</string>
+    <string name="json_import_too_large">Wklej najwyżej 512 000 znaków naraz.</string>
 </resources>

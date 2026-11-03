@@ -153,7 +153,7 @@
     <string name="cholesterol_known_total">Cholesterol: %1$.1f mg from known foods</string>
     <string name="cholesterol_missing">Cholesterol data missing for %1$d food(s); total is incomplete.</string>
     <string name="catalog_title">Shared food and recipe catalogue</string>
-    <string name="catalog_help">Sync uploads your saved scanned products, manual foods and recipes, and downloads changes from the server. Shared edits and recipe deletions reach other devices on their next sync. Your diary and profile stay on this phone. Use this only on a trusted local network.</string>
+    <string name="catalog_help">Sync uploads saved scanned products (tagged as scanned), manual foods and recipes. New items download automatically during sync. Incoming changes and deletions need your confirmation for each existing item. Your diary and profile stay on this phone. Use a trusted local network.</string>
     <string name="catalog_address">Server address</string>
     <string name="catalog_key">Server access key</string>
     <string name="catalog_sync">Sync foods and recipes</string>
@@ -161,9 +161,9 @@
     <string name="catalog_last_sync">Last synced: %1$s</string>
     <string name="catalog_synced">Synced. %1$d foods and %2$d recipes are available offline.</string>
     <string name="catalog_failed">Sync failed: %1$s</string>
-    <string name="catalog_conflict_help">These entries changed both here and on the server. No changes were saved by this sync. Choose which version to keep for the listed entries; the other version will be replaced.</string>
-    <string name="catalog_keep_local">Keep this phone’s versions</string>
-    <string name="catalog_keep_server">Keep the server’s versions</string>
+    <string name="catalog_conflict_help">Incoming changes are waiting for review below. Existing items stay unchanged until you choose. New items have been synced. Keeping this phone’s version sends it back to the server.</string>
+    <string name="catalog_keep_local">Keep my version</string>
+    <string name="catalog_keep_server">Confirm incoming change</string>
     <string name="catalog_disconnect">Clear server connection</string>
     <string name="catalog_disconnect_help">Foods and recipes stay on this phone. The server address, key and sync history are cleared. Connecting again will offer these entries to that server.</string>
     <string name="catalog_disconnected">Connection cleared. Foods and recipes are still available offline.</string>
@@ -184,4 +184,22 @@
     <string name="catalog_key_options">Connection options</string>
     <string name="catalog_key_help">Only needed if the server administrator enabled access-key protection.</string>
     <string name="catalog_key_required">This server has access-key protection enabled. Enter its key below, then sync again.</string>
+    <string name="cholesterol_reference_note">Based on the FDA daily reference of 300 mg; not a personalised limit.</string>
+    <string name="catalog_incoming_delete">Incoming deletion: %1$s</string>
+    <string name="json_import_title">Import food or recipe JSON</string>
+    <string name="json_import_help">Copy the prompt into any AI chat, discuss your food or recipe, then paste its JSON here. Review and save offline; sync with your server when you are home.</string>
+    <string name="json_import_kind_food">Food selected · tap to choose recipe</string>
+    <string name="json_import_kind_recipe">Recipe selected · tap to choose food</string>
+    <string name="json_import_copy_prompt">Copy AI prompt and JSON format</string>
+    <string name="json_import_copied">Copied. Paste into your preferred AI chat or browser.</string>
+    <string name="json_import_paste_label">JSON from your chat</string>
+    <string name="json_import_paste">Paste from clipboard</string>
+    <string name="json_import_review">Validate and review</string>
+    <string name="json_import_preview_count">Review %1$d new item(s)</string>
+    <string name="json_import_finished_weight">Finished recipe weight: %1$.1f g</string>
+    <string name="json_import_defaults_note">Nutrition is per 100 g. Missing optional nutrients use catalogue defaults (zero); unknown cholesterol stays unknown. Saving creates new items without changing your diary or existing items.</string>
+    <string name="json_import_save">Save reviewed items offline</string>
+    <string name="json_import_saving">Saving…</string>
+    <string name="json_import_saved">Saved offline. Foods are in name search; recipes are under Recipes. Sync when home to share them with your server.</string>
+    <string name="json_import_too_large">Paste at most 512,000 characters at a time.</string>
 </resources>

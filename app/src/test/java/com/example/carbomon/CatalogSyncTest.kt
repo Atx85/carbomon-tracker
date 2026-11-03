@@ -96,6 +96,73 @@ class CatalogSyncTest {
         assertEquals(370.0, recipeToFood(recipe.copy(finishedWeightGrams = null)).caloriesPer100g, 0.0)
     }
 
+    @Test fun incomingEditsWaitWhileNewFoodsAreAddedAndRepeatSyncDoesNotPublishRejectedValues() {
+        val records = accepted(planCatalogSync(JSONArray().put(food()), JSONArray(), JSONArray(), "a").changes)
+        val local = JSONArray(records.toString())
+        val incoming = JSONArray(records.toString())
+        incoming.getJSONObject(0).put("revision", 5).getJSONObject("data").put("description", "Server update")
+        incoming.put(JSONObject(incoming.getJSONObject(0).toString()).put("id", "catalog-new").put("revision", 6))
+        val (merged, pending) = reviewIncomingCatalog(catalog(incoming), local, records)
+        assertEquals(1, pending.length())
+        val stored = catalogToStorage(merged)
+        assertEquals(2, stored.foods.length())
+        assertEquals("Test oats", stored.foods.getJSONObject(0).getString("description"))
+        assertEquals("Server update", stored.foods.getJSONObject(1).getString("description"))
+        assertEquals(0, planCatalogSync(stored.foods, JSONArray(), incoming, "a", pending).changes.length())
+        val (_, repeated) = reviewIncomingCatalog(catalog(incoming), merged.getJSONArray("records"), incoming)
+        assertEquals(1, repeated.length())
+        val (approved, remaining) = reviewIncomingCatalog(catalog(incoming), merged.getJSONArray("records"), incoming, pending, ConflictChoice.SERVER)
+        assertEquals(0, remaining.length())
+        assertEquals("Server update", catalogToStorage(approved).foods.getJSONObject(0).getString("description"))
+    }
+
+    @Test fun approvalsOnlyApplyToReviewedRevisionAndSelectedEntry() {
+        val records = accepted(planCatalogSync(JSONArray().put(food()).put(food("other")), JSONArray(), JSONArray(), "a").changes)
+        val incoming = JSONArray(records.toString())
+        incoming.objects().forEach { it.put("revision", it.getLong("revision") + 10).getJSONObject("data").put("brand", "New brand") }
+        val selection = JSONArray().put(JSONObject(incoming.getJSONObject(0).toString()))
+        val (_, pending) = reviewIncomingCatalog(catalog(incoming), records, records, selection, ConflictChoice.SERVER)
+        assertEquals(1, pending.length())
+        incoming.getJSONObject(0).put("revision", 30)
+        val (_, newer) = reviewIncomingCatalog(catalog(incoming), records, records, selection, ConflictChoice.SERVER)
+        assertEquals(2, newer.length())
+        val local = catalogToStorage(catalog(records))
+        val keepOne = planCatalogSync(local.foods, JSONArray(), incoming, "a", incoming, ConflictChoice.LOCAL,
+            setOf(recordKey(selection.getJSONObject(0))))
+        assertEquals(1, keepOne.changes.length())
+    }
+
+    @Test fun incomingDeletionRequiresConfirmationAndUnknownCholesterolSurvives() {
+        val records = accepted(planCatalogSync(JSONArray().put(food()), JSONArray(), JSONArray(), "a").changes)
+        val deleted = JSONArray(records.toString())
+        deleted.getJSONObject(0).put("deleted", true).put("data", JSONObject.NULL).put("revision", 10)
+        val (held, pending) = reviewIncomingCatalog(catalog(deleted), records, records)
+        assertEquals(1, catalogToStorage(held).foods.length())
+        assertTrue(catalogToStorage(held).foods.getJSONObject(0).isNull("cholesterolMgPer100g"))
+        val (confirmed, remaining) = reviewIncomingCatalog(catalog(deleted), records, deleted, pending, ConflictChoice.SERVER)
+        assertEquals(0, remaining.length())
+        assertEquals(0, catalogToStorage(confirmed).foods.length())
+    }
+
+    @Test fun reviewSnapshotPreservesExistingServerIdsWithoutCatalogPrefix() {
+        val records = accepted(planCatalogSync(JSONArray().put(food()), JSONArray(), JSONArray(), "a").changes)
+        records.getJSONObject(0).put("id", "server-product-123")
+        val stored = catalogToStorage(catalog(records))
+        val snapshot = planCatalogSync(stored.foods, JSONArray(), records, "a", includeUnchanged = true).changes
+        assertEquals("server-product-123", snapshot.getJSONObject(0).getString("id"))
+        assertEquals(0, reviewIncomingCatalog(catalog(records), snapshot, records).second.length())
+    }
+
+    @Test fun ownSuccessfulUploadDoesNotRequireReviewAndScannedTagRoundTrips() {
+        val id = scannedFoodId("123456789012")!!
+        val records = accepted(planCatalogSync(JSONArray().put(food(id)), JSONArray(), JSONArray(), "a").changes)
+        assertEquals("scanned", records.getJSONObject(0).getJSONObject("data").getString("entryType"))
+        val storage = catalogToStorage(catalog(records))
+        assertEquals("scanned", storage.foods.getJSONObject(0).getString("entryType"))
+        assertEquals(0, planCatalogSync(storage.foods, JSONArray(), records, "a").changes.length())
+        assertEquals(0, reviewIncomingCatalog(catalog(records), records, JSONArray()).second.length())
+    }
+
     @Test fun realServerTwoDeviceSyncConflictDeleteAndFailedConnection() {
         val address = System.getenv("CARBOMON_TEST_SERVER") ?: ""
         assumeTrue("Set CARBOMON_TEST_SERVER to run the real HTTP integration test", address.isNotEmpty())
@@ -114,15 +181,31 @@ class CatalogSyncTest {
         aRecipes.getJSONObject(0).put("name", "Phone A edit"); a.values["recipes_json"] = aRecipes.toString()
         bRecipes.getJSONObject(0).put("name", "Phone B edit"); b.values["recipes_json"] = bRecipes.toString()
         clientA.sync(address, key, JSONArray(), null)
-        val beforeConflict = b.values["recipes_json"]
-        val conflict = try { clientB.sync(address, key, JSONArray(), null); error("Expected conflict") } catch (e: CatalogConflict) { e }
-        assertEquals(beforeConflict, b.values["recipes_json"])
-        clientB.sync(address, key, conflict.records, ConflictChoice.LOCAL)
+        // An unrelated addition still arrives while the recipe awaits review.
+        val extraFoods = JSONArray(a.values["manual_foods_json"].toString()).put(food("new-food"))
+        a.values["manual_foods_json"] = extraFoods.toString()
         clientA.sync(address, key, JSONArray(), null)
+        val beforeConflict = b.values["recipes_json"]
+        val conflict = clientB.sync(address, key, JSONArray(), null)
+        assertEquals(beforeConflict, b.values["recipes_json"])
+        assertEquals(1, conflict.pending.length())
+        assertEquals(2, conflict.foods)
+        // Simulate a restarted app, then repeat sync without approving anything.
+        val restarted = CatalogSyncClient(b.prefs).sync(address, key, JSONArray(), null)
+        assertEquals(1, restarted.pending.length())
+        assertEquals(beforeConflict, b.values["recipes_json"])
+        clientB.sync(address, key, conflict.pending, ConflictChoice.LOCAL)
+        val incomingA = clientA.sync(address, key, JSONArray(), null)
+        assertEquals("Phone A edit", JSONArray(a.values["recipes_json"].toString()).getJSONObject(0).getString("name"))
+        assertEquals(1, incomingA.pending.length())
+        clientA.sync(address, key, incomingA.pending, ConflictChoice.SERVER)
         assertEquals("Phone B edit", JSONArray(a.values["recipes_json"].toString()).getJSONObject(0).getString("name"))
         a.values["recipes_json"] = "[]"
         clientA.sync(address, key, JSONArray(), null)
-        assertEquals(0, clientB.sync(address, key, JSONArray(), null).recipes)
+        val deletion = clientB.sync(address, key, JSONArray(), null)
+        assertEquals(1, deletion.recipes)
+        assertEquals(1, deletion.pending.length())
+        assertEquals(0, clientB.sync(address, key, deletion.pending, ConflictChoice.SERVER).recipes)
         val beforeFailure = HashMap(b.values)
         try { clientB.sync(address, "", JSONArray(), null); fail("Expected key prompt") } catch (_: CatalogKeyRequired) { }
         try { clientB.sync(address, "wrong-key", JSONArray(), null); fail("Expected auth error") } catch (_: IllegalStateException) { }
@@ -134,9 +217,26 @@ class CatalogSyncTest {
         for (phone in listOf(a, b)) {
             phone.values["manual_foods_json"] = JSONArray(phone.values["manual_foods_json"].toString()).put(scanned).toString()
         }
-        assertEquals(2, clientA.sync(address, key, JSONArray(), null).foods)
-        assertEquals(2, clientB.sync(address, key, JSONArray(), null).foods)
-        assertEquals(2, clientB.sync(address, key, JSONArray(), null).foods)
+        assertEquals(3, clientA.sync(address, key, JSONArray(), null).foods)
+        assertEquals(3, clientB.sync(address, key, JSONArray(), null).foods)
+        assertEquals(3, clientB.sync(address, key, JSONArray(), null).foods)
+
+        // Phone-only AI JSON imports later share through the real server.
+        val root = java.io.File(System.getProperty("carbomon.catalogRoot"))
+        for (kind in listOf("food", "recipe")) {
+            val schema = JSONObject(java.io.File(root, "schemas/$kind.json").readText())
+            val example = JSONObject(java.io.File(root, "examples/$kind.json").readText())
+            example.put(if (kind == "food") "description" else "name", "Imported offline $kind")
+            val draft = prepareCatalogImport(example.toString(), kind, schema)
+            val imported = appendCatalogImport(JSONArray(a.values["manual_foods_json"].toString()), JSONArray(a.values["recipes_json"].toString()), draft)
+            a.values["manual_foods_json"] = imported.foods.toString()
+            a.values["recipes_json"] = imported.recipes.toString()
+        }
+        clientA.sync(address, key, JSONArray(), null)
+        val downloaded = clientB.sync(address, key, JSONArray(), null)
+        assertEquals(0, downloaded.pending.length())
+        assertTrue(JSONArray(b.values["manual_foods_json"].toString()).objects().any { it.getString("description") == "Imported offline food" && it.isNull("cholesterolMgPer100g") })
+        assertTrue(JSONArray(b.values["recipes_json"].toString()).objects().any { it.getString("name") == "Imported offline recipe" && it.getDouble("finishedWeightGrams") == 250.0 })
     }
 
     @Test fun realServerSyncWithoutAnAccessKey() {

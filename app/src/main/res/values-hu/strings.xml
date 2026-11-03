@@ -153,7 +153,7 @@
     <string name="cholesterol_known_total">Koleszterin: %1$.1f mg az ismert ételekből</string>
     <string name="cholesterol_missing">%1$d ételnél hiányzik a koleszterinadat; az összeg nem teljes.</string>
     <string name="catalog_title">Közös étel- és receptgyűjtemény</string>
-    <string name="catalog_help">A szinkronizálás feltölti a beolvasott termékeket, kézzel mentett ételeket és recepteket, és letölti a szerver módosításait. A közös módosítások és recepttörlések a következő szinkronizáláskor jutnak el a többi eszközre. A napló és a profil ezen a telefonon marad. Csak megbízható helyi hálózaton használd.</string>
+    <string name="catalog_help">A szinkronizálás feltölti a beolvasottként megjelölt termékeket, kézi ételeket és recepteket. Az új elemek automatikusan letöltődnek. A meglévő elemek módosításához és törléséhez egyenkénti jóváhagyás kell. A napló és profil a telefonon marad. Használj megbízható helyi hálózatot.</string>
     <string name="catalog_address">Szerver címe</string>
     <string name="catalog_key">Szerver hozzáférési kulcsa</string>
     <string name="catalog_sync">Ételek és receptek szinkronizálása</string>
@@ -161,9 +161,9 @@
     <string name="catalog_last_sync">Utolsó szinkronizálás: %1$s</string>
     <string name="catalog_synced">Szinkronizálva. %1$d étel és %2$d recept érhető el offline.</string>
     <string name="catalog_failed">Sikertelen szinkronizálás: %1$s</string>
-    <string name="catalog_conflict_help">Ezek a bejegyzések itt és a szerveren is módosultak. Ez a szinkronizálás nem mentett változásokat. Válaszd ki, melyik változat maradjon meg a felsorolt bejegyzéseknél; a másik felülíródik.</string>
-    <string name="catalog_keep_local">A telefon változatainak megtartása</string>
-    <string name="catalog_keep_server">A szerver változatainak megtartása</string>
+    <string name="catalog_conflict_help">A bejövő módosítások alább ellenőrizhetők. A meglévő elemek a döntésedig változatlanok. Az új elemek szinkronizálva lettek. A telefon változatának megtartása azt visszaküldi a szerverre.</string>
+    <string name="catalog_keep_local">Saját változat megtartása</string>
+    <string name="catalog_keep_server">Bejövő módosítás jóváhagyása</string>
     <string name="catalog_disconnect">Szerverkapcsolat törlése</string>
     <string name="catalog_disconnect_help">Az ételek és receptek a telefonon maradnak. A szerver címe, kulcsa és a szinkronizálás előzményei törlődnek. Új kapcsolódáskor ezek a bejegyzések feltöltésre kerülhetnek a szerverre.</string>
     <string name="catalog_disconnected">Kapcsolat törölve. Az ételek és receptek továbbra is elérhetők offline.</string>
@@ -184,4 +184,22 @@
     <string name="catalog_key_options">Kapcsolati beállítások</string>
     <string name="catalog_key_help">Csak akkor szükséges, ha a szerver üzemeltetője bekapcsolta a kulcsos védelmet.</string>
     <string name="catalog_key_required">Ez a szerver hozzáférési kulcsot kér. Add meg alább a kulcsot, majd szinkronizálj újra.</string>
+    <string name="cholesterol_reference_note">Az FDA napi 300 mg-os referenciaértéke alapján; nem személyre szabott határérték.</string>
+    <string name="catalog_incoming_delete">Bejövő törlés: %1$s</string>
+    <string name="json_import_title">Étel vagy recept importálása JSON-ból</string>
+    <string name="json_import_help">Másold a kérést egy tetszőleges MI-csevegésbe, beszéljétek meg az ételt vagy receptet, majd illeszd be ide a JSON-t. Ellenőrzés után offline menthető; otthon szinkronizáld a szerverrel.</string>
+    <string name="json_import_kind_food">Étel kiválasztva · koppints a recepthez</string>
+    <string name="json_import_kind_recipe">Recept kiválasztva · koppints az ételhez</string>
+    <string name="json_import_copy_prompt">MI-kérés és JSON-formátum másolása</string>
+    <string name="json_import_copied">Másolva. Illeszd be a választott MI-csevegésbe vagy böngészőbe.</string>
+    <string name="json_import_paste_label">JSON a csevegésből</string>
+    <string name="json_import_paste">Beillesztés a vágólapról</string>
+    <string name="json_import_review">Ellenőrzés és áttekintés</string>
+    <string name="json_import_preview_count">%1$d új elem áttekintése</string>
+    <string name="json_import_finished_weight">Elkészült recept tömege: %1$.1f g</string>
+    <string name="json_import_defaults_note">A tápértékek 100 g-ra vonatkoznak. A hiányzó opcionális értékek a katalógus alapértékét (nullát) kapják; az ismeretlen koleszterin ismeretlen marad. A mentés új elemeket hoz létre, a napló és a meglévő elemek nem változnak.</string>
+    <string name="json_import_save">Ellenőrzött elemek mentése offline</string>
+    <string name="json_import_saving">Mentés…</string>
+    <string name="json_import_saved">Offline mentve. Az ételek név szerint kereshetők; a receptek a Receptek alatt vannak. Otthon szinkronizálj a szerverrel.</string>
+    <string name="json_import_too_large">Egyszerre legfeljebb 512 000 karaktert illessz be.</string>
 </resources>

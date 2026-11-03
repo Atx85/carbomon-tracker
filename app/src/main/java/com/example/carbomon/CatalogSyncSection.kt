@@ -86,12 +86,15 @@ internal fun CatalogSyncSection(state: NutritionUiState, onAction: (NutritionAct
             style = MaterialTheme.typography.bodySmall)
         if (state.catalogStatus.isNotBlank()) Text(state.catalogStatus, style = MaterialTheme.typography.bodySmall)
         if (state.catalogConflicts.isNotEmpty()) {
-            Text(state.catalogConflicts.joinToString("\n") { "• $it" }, style = MaterialTheme.typography.bodySmall)
-            OutlinedButton(onClick = { onAction(NutritionAction.KeepLocalCatalogChanges) }, enabled = !state.isSyncing) {
-                Text(stringResource(R.string.catalog_keep_local))
-            }
-            OutlinedButton(onClick = { onAction(NutritionAction.KeepServerCatalogChanges) }, enabled = !state.isSyncing) {
-                Text(stringResource(R.string.catalog_keep_server))
+            Text(stringResource(R.string.catalog_conflict_help), style = MaterialTheme.typography.bodySmall)
+            state.catalogConflicts.forEachIndexed { index, label ->
+                Text(label, style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = { onAction(NutritionAction.ReviewCatalogEntry(index, false)) }, enabled = !state.isSyncing) {
+                    Text(stringResource(R.string.catalog_keep_local))
+                }
+                OutlinedButton(onClick = { onAction(NutritionAction.ReviewCatalogEntry(index, true)) }, enabled = !state.isSyncing) {
+                    Text(stringResource(R.string.catalog_keep_server))
+                }
             }
         }
         if (state.catalogAddress.isNotBlank()) TextButton(onClick = { disconnect = true }, enabled = !state.isSyncing) {

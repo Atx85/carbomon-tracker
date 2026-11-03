@@ -210,3 +210,26 @@ func TestBulkImportsAreAtomicAndRetrySafe(t *testing.T) {
 		t.Fatal("bulk duplicate or partial save", c)
 	}
 }
+
+func TestScannedFoodTagPersistsAndRejectsUnknownType(t *testing.T) {
+	s := testStore(t)
+	var item map[string]any
+	if err := json.Unmarshal(food(t), &item); err != nil {
+		t.Fatal(err)
+	}
+	item["entryType"] = "scanned"
+	raw, _ := json.Marshal(item)
+	catalog, err := syncChanges(s, change("catalog-barcode-00123456789012", 0, raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved map[string]any
+	if err := json.Unmarshal(catalog.Records[0].Data, &saved); err != nil || saved["entryType"] != "scanned" {
+		t.Fatal("scanned tag lost", saved, err)
+	}
+	item["entryType"] = "unknown"
+	raw, _ = json.Marshal(item)
+	if _, err := syncChanges(s, change("bad-type", 0, raw)); err == nil {
+		t.Fatal("unknown entry type accepted")
+	}
+}

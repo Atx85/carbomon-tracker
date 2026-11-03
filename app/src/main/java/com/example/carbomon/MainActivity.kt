@@ -76,6 +76,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.tooling.preview.Preview
@@ -303,7 +306,10 @@ fun NutritionApp(modifier: Modifier = Modifier) {
                             targetFat = targets.fatGrams * dayMultiplier
                         )
                     }
-                    CholesterolSummary(cholesterolTotal(entriesForDiary.map { it.cholesterolMgPer100g to it.gramsConsumed }))
+                    CholesterolSummary(
+                        cholesterolTotal(entriesForDiary.map { it.cholesterolMgPer100g to it.gramsConsumed }),
+                        referenceMg = 300.0 * dayMultiplier
+                    )
                     ConsumedFoodsSection(
                         entries = entriesForDiary,
                         headerText = if (diaryViewMode == DiaryViewMode.DAY) {
@@ -834,6 +840,11 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
                                         ) {
                                             Text(food.description, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
                                             Text(
+                                                stringResource(R.string.last_used_grams,
+                                                    formatGrams(reusedFoodGrams(food, state.recentFoods, state.consumedEntries))),
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
                                                 "${food.caloriesPer100g.roundToInt()} kcal | P ${food.proteinPer100g.roundToInt()} | C ${food.carbsPer100g.roundToInt()} | F ${food.fatPer100g.roundToInt()}",
                                                 style = MaterialTheme.typography.bodySmall
                                             )
@@ -967,6 +978,8 @@ private fun SearchSection(state: NutritionUiState, onAction: (NutritionAction) -
         }
     }
     
+    CatalogJsonImportSection(state, onAction)
+
     state.foodToAdd?.let { selectedFood ->
         AlertDialog(
             onDismissRequest = { onAction(NutritionAction.DismissAddFoodDialog) },
@@ -1484,6 +1497,14 @@ private fun BarcodeCameraPreview(onBarcodeDetected: (String) -> Unit) {
     )
 }
 
+private val ProteinColor = Color(0xFF2E7D32)
+private val CarbsColor = Color(0xFFEF6C00)
+private val FatColor = Color(0xFF1565C0)
+private val CholesterolColor = Color(0xFFAD1457)
+
+private fun diaryPercentage(value: Double, total: Double): String =
+    if (total > 0.0 && value.isFinite() && total.isFinite()) " (${(value / total * 100).roundToInt()}%)" else " (0%)"
+
 @Composable
 private fun ConsumedFoodsSection(
     entries: List<ConsumedFoodEntry>,
@@ -1509,16 +1530,34 @@ private fun ConsumedFoodsSection(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(entry.description, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.bodyMedium)
-                        CholesterolAmount(cholesterolForGrams(entry.cholesterolMgPer100g, entry.gramsConsumed))
+                        val cholesterolMg = cholesterolForGrams(entry.cholesterolMgPer100g, entry.gramsConsumed)
+                        val cholesterolText = if (cholesterolMg == null) {
+                            stringResource(R.string.cholesterol_unknown)
+                        } else {
+                            stringResource(R.string.cholesterol_amount, cholesterolMg)
+                        }
+                        val caloriesColor = MaterialTheme.colorScheme.primary
                         Text(
-                            stringResource(
-                                R.string.entry_compact_summary,
-                                entry.gramsConsumed.roundToInt(),
-                                kcal.roundToInt(),
-                                protein.roundToInt(),
-                                carbs.roundToInt(),
-                                fat.roundToInt()
-                            ),
+                            buildAnnotatedString {
+                                append("${formatGrams(entry.gramsConsumed)}g | ")
+                                withStyle(SpanStyle(color = caloriesColor)) {
+                                    append("${kcal.roundToInt()} kcal")
+                                }
+                                append(" | ")
+                                withStyle(SpanStyle(color = ProteinColor)) {
+                                    append("P ${protein.roundToInt()}g")
+                                }
+                                append(" | ")
+                                withStyle(SpanStyle(color = CarbsColor)) {
+                                    append("C ${carbs.roundToInt()}g")
+                                }
+                                append(" | ")
+                                withStyle(SpanStyle(color = FatColor)) {
+                                    append("F ${fat.roundToInt()}g")
+                                }
+                                append(" | ")
+                                withStyle(SpanStyle(color = CholesterolColor)) { append(cholesterolText) }
+                            },
                             style = MaterialTheme.typography.bodySmall
                         )
                         Row(
@@ -1528,14 +1567,14 @@ private fun ConsumedFoodsSection(
                             TextButton(
                                 onClick = {
                                     entryToModify = entry
-                                    modifyGramsInput = entry.gramsConsumed.roundToInt().toString()
+                                    modifyGramsInput = formatGrams(entry.gramsConsumed)
                                 },
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                             ) { Text(stringResource(R.string.modify)) }
                             TextButton(
                                 onClick = {
                                     entryToReAdd = entry
-                                    reAddGramsInput = entry.gramsConsumed.roundToInt().toString()
+                                    reAddGramsInput = formatGrams(entry.gramsConsumed)
                                 },
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                             ) { Text(stringResource(R.string.re_add)) }
@@ -1616,18 +1655,34 @@ private fun CholesterolAmount(mg: Double?, per100g: Boolean = false) {
     val text = if (mg == null) stringResource(R.string.cholesterol_unknown) else {
         stringResource(if (per100g) R.string.cholesterol_per_100g else R.string.cholesterol_amount, mg)
     }
-    Text(text, style = MaterialTheme.typography.bodySmall)
+    Text(text, style = MaterialTheme.typography.bodySmall, color = CholesterolColor)
 }
 
 @Composable
-private fun CholesterolSummary(total: CholesterolTotal) {
+private fun CholesterolSummary(total: CholesterolTotal, referenceMg: Double? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (total.missingCount == 0) {
+        if (referenceMg != null && (total.knownCount > 0 || total.missingCount == 0)) {
+            val amount = stringResource(
+                if (total.missingCount == 0) R.string.cholesterol_amount else R.string.cholesterol_known_total,
+                total.knownMg
+            )
+            Text(
+                amount + " / ${referenceMg.roundToInt()} mg" + diaryPercentage(total.knownMg, referenceMg),
+                style = MaterialTheme.typography.bodySmall,
+                color = CholesterolColor
+            )
+        } else if (total.missingCount == 0) {
             CholesterolAmount(total.knownMg)
+        } else if (total.knownCount == 0) {
+            CholesterolAmount(null)
         } else {
-            if (total.knownCount == 0) CholesterolAmount(null)
-            else Text(stringResource(R.string.cholesterol_known_total, total.knownMg), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.cholesterol_known_total, total.knownMg), style = MaterialTheme.typography.bodySmall, color = CholesterolColor)
+        }
+        if (total.missingCount > 0) {
             Text(stringResource(R.string.cholesterol_missing, total.missingCount), style = MaterialTheme.typography.bodySmall)
+        }
+        if (referenceMg != null) {
+            Text(stringResource(R.string.cholesterol_reference_note), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -1675,27 +1730,27 @@ private fun DiaryHealthBars(
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             StatBarRow(
                 label = stringResource(R.string.calories),
-                valueText = stringResource(R.string.calories_progress, usedKcal.roundToInt(), targetKcal),
+                valueText = stringResource(R.string.calories_progress, usedKcal.roundToInt(), targetKcal) + diaryPercentage(usedKcal, targetKcal.toDouble()),
                 progress = progressOf(usedKcal, targetKcal.toDouble()),
                 color = MaterialTheme.colorScheme.primary
             )
             StatBarRow(
                 label = stringResource(R.string.protein),
-                valueText = stringResource(R.string.protein_progress, usedProtein.roundToInt(), targetProtein.roundToInt()),
+                valueText = stringResource(R.string.protein_progress, usedProtein.roundToInt(), targetProtein.roundToInt()) + diaryPercentage(usedProtein, targetProtein),
                 progress = progressOf(usedProtein, targetProtein),
-                color = Color(0xFF2E7D32)
+                color = ProteinColor
             )
             StatBarRow(
                 label = stringResource(R.string.carbs),
-                valueText = stringResource(R.string.carbs_progress, usedCarbs.roundToInt(), targetCarbs.roundToInt()),
+                valueText = stringResource(R.string.carbs_progress, usedCarbs.roundToInt(), targetCarbs.roundToInt()) + diaryPercentage(usedCarbs, targetCarbs),
                 progress = progressOf(usedCarbs, targetCarbs),
-                color = Color(0xFFEF6C00)
+                color = CarbsColor
             )
             StatBarRow(
                 label = stringResource(R.string.fat),
-                valueText = stringResource(R.string.fat_progress, usedFat.roundToInt(), targetFat.roundToInt()),
+                valueText = stringResource(R.string.fat_progress, usedFat.roundToInt(), targetFat.roundToInt()) + diaryPercentage(usedFat, targetFat),
                 progress = progressOf(usedFat, targetFat),
-                color = Color(0xFF1565C0)
+                color = FatColor
             )
             Text(stringResource(R.string.remaining_kcal, (targetKcal - usedKcal).roundToInt()), style = MaterialTheme.typography.bodySmall)
         }
@@ -1764,7 +1819,8 @@ data class FoodItem(
     val ironMgPer100g: Double = 0.0,
     val lastUsedGrams: Double? = null,
     val cholesterolMgPer100g: Double? = null,
-    val nutritionSource: String = ""
+    val nutritionSource: String = "",
+    val entryType: String = ""
 )
 
 data class ConsumedFoodEntry(
@@ -1861,6 +1917,8 @@ data class UserProfile(
 )
 
 data class NutritionUiState(
+    val jsonImportSavedId: String? = null,
+    val jsonImportError: String = "",
     val weightKgInput: String = "",
     val heightCmInput: String = "",
     val ageInput: String = "",
@@ -1929,6 +1987,7 @@ data class NutritionUiState(
 )
 
 sealed interface NutritionAction {
+    data class ImportCatalogJson(val draft: CatalogImportDraft) : NutritionAction
     data class UpdateWeight(val value: String) : NutritionAction
     data class UpdateHeight(val value: String) : NutritionAction
     data class UpdateAge(val value: String) : NutritionAction
@@ -1942,8 +2001,7 @@ sealed interface NutritionAction {
     data object StopCatalogDiscovery : NutritionAction
     data class SelectCatalogServer(val server: CatalogServer) : NutritionAction
     data object SyncCatalog : NutritionAction
-    data object KeepLocalCatalogChanges : NutritionAction
-    data object KeepServerCatalogChanges : NutritionAction
+    data class ReviewCatalogEntry(val index: Int, val useServer: Boolean) : NutritionAction
     data object ClearCatalogConnection : NutritionAction
     data object SaveProfile : NutritionAction
     data class UpdateQuery(val value: String) : NutritionAction
@@ -2024,13 +2082,32 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun onAction(action: NutritionAction) {
         if (uiState.isSyncing && (action is NutritionAction.SaveFood || action is NutritionAction.AddFood || action is NutritionAction.ConfirmAddFood ||
-                action is NutritionAction.SaveRecipe || action is NutritionAction.ConfirmDeleteRecipe ||
+                action is NutritionAction.SaveRecipe || action is NutritionAction.ImportCatalogJson || action is NutritionAction.ConfirmDeleteRecipe ||
                 action is NutritionAction.ConfirmRecipeIngredientGrams || action is NutritionAction.ImportBackup ||
                 action is NutritionAction.ShowAddRecipeDialog || action is NutritionAction.EditRecipe)) {
             uiState = uiState.copy(message = getApplication<Application>().getString(R.string.catalog_wait))
             return
         }
         when (action) {
+            is NutritionAction.ImportCatalogJson -> {
+                if (!uiState.isImporting && !uiState.isSyncing) {
+                    uiState = uiState.copy(isImporting = true, jsonImportError = "")
+                    viewModelScope.launch {
+                        try {
+                            repo.importCatalogJson(action.draft)
+                            uiState = uiState.copy(recipes = repo.loadRecipes(), searchResults = emptyList(),
+                                jsonImportSavedId = action.draft.id,
+                                message = getApplication<Application>().getString(R.string.json_import_saved))
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            uiState = uiState.copy(jsonImportError = (error.message ?: "Unable to import JSON").take(500))
+                        } finally {
+                            uiState = uiState.copy(isImporting = false)
+                        }
+                    }
+                }
+            }
             is NutritionAction.UpdateCatalogAddress -> {
                 if (!uiState.isSyncing) {
                     stopCatalogDiscovery()
@@ -2044,8 +2121,9 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             NutritionAction.StopCatalogDiscovery -> stopCatalogDiscovery()
             is NutritionAction.SelectCatalogServer -> selectCatalogServer(action.server)
             NutritionAction.SyncCatalog -> syncCatalog()
-            NutritionAction.KeepLocalCatalogChanges -> syncCatalog(ConflictChoice.LOCAL)
-            NutritionAction.KeepServerCatalogChanges -> syncCatalog(ConflictChoice.SERVER)
+            is NutritionAction.ReviewCatalogEntry -> syncCatalog(
+                if (action.useServer) ConflictChoice.SERVER else ConflictChoice.LOCAL, action.index
+            )
             NutritionAction.ClearCatalogConnection -> if (!uiState.isSyncing) {
                 stopCatalogDiscovery()
                 repo.clearCatalogConnection()
@@ -2234,7 +2312,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun prepareFoodForAdd(food: FoodItem) {
-        uiState = uiState.copy(foodToAdd = food, addFoodGramsInput = "100")
+        uiState = uiState.copy(foodToAdd = food,
+            addFoodGramsInput = formatGrams(reusedFoodGrams(food, uiState.recentFoods, uiState.consumedEntries)))
         if (food.source == FoodSource.MANUAL) {
             viewModelScope.launch {
                 repo.rememberManualFood(food)
@@ -2259,6 +2338,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             val recentWithFallback = recentFoodsWithAmounts(recentFoods, enriched)
             if (recentWithFallback != recentFoods) repo.saveRecentFoods(recentWithFallback)
             val recipes = repo.loadRecipes()
+            catalogConflicts = repo.pendingCatalogUpdates()
             uiState = uiState.copy(
                 profile = profile,
                 consumedEntries = enriched,
@@ -2274,7 +2354,8 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
                 language = language,
                 catalogAddress = repo.catalogAddress(),
                 catalogKey = repo.catalogKey(),
-                catalogLastSync = repo.catalogLastSync()
+                catalogLastSync = repo.catalogLastSync(),
+                catalogConflicts = catalogReviewLabels(repo.pendingCatalogUpdates())
             )
         }
     }
@@ -2320,35 +2401,49 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             catalogDiscoveryStatus = getApplication<Application>().getString(R.string.catalog_discovery_selected, server.name))
     }
 
-    private fun syncCatalog(choice: ConflictChoice? = null) {
+    private fun catalogReviewLabels(records: JSONArray): List<String> = records.objects().map { record ->
+        val data = record.optJSONObject("data")
+        val name = data?.optString("name", data.optString("description", record.getString("id"))) ?: record.getString("id")
+        if (record.optBoolean("deleted")) {
+            getApplication<Application>().getString(R.string.catalog_incoming_delete, name)
+        } else if (record.getString("kind") == "food") {
+            "$name\n${data!!.getDouble("caloriesPer100g").roundToInt()} kcal / 100g · P ${data.getDouble("proteinPer100g")}g · C ${data.getDouble("carbsPer100g")}g · F ${data.getDouble("fatPer100g")}g"
+        } else {
+            "$name\n" + data!!.getJSONArray("ingredients").objects().joinToString(" · ") {
+                "${it.getString("foodDescription")}: ${it.getDouble("gramsUsed")}g"
+            }
+        }
+    }
+
+    private fun syncCatalog(choice: ConflictChoice? = null, selectedIndex: Int? = null) {
         if (uiState.isSyncing || uiState.isImporting || uiState.showAddRecipeDialog) return
         stopCatalogDiscovery()
         val address = uiState.catalogAddress
         val key = uiState.catalogKey
-        val conflicts = if (choice == null) JSONArray() else catalogConflicts
+        val conflicts = when {
+            choice == null -> JSONArray()
+            selectedIndex == null -> catalogConflicts
+            selectedIndex in 0 until catalogConflicts.length() -> JSONArray().put(catalogConflicts.getJSONObject(selectedIndex))
+            else -> return
+        }
         foodSearchJob?.cancel()
         uiState = uiState.copy(isSyncing = true, isLoading = false, catalogStatus = "", catalogConflicts = emptyList())
         viewModelScope.launch {
             try {
                 repo.saveCatalogConnection(address, key)
                 val result = repo.syncCatalog(address, key, conflicts, choice)
-                catalogConflicts = JSONArray()
+                catalogConflicts = result.pending
                 uiState = uiState.copy(recipes = repo.loadRecipes(), recentFoods = repo.loadRecentFoods(),
                     searchResults = emptyList(), catalogNeedsKey = false, catalogLastSync = repo.catalogLastSync(),
+                    catalogConflicts = catalogReviewLabels(result.pending),
                     catalogStatus = getApplication<Application>().getString(R.string.catalog_synced, result.foods, result.recipes))
             } catch (_: CatalogKeyRequired) {
-                uiState = uiState.copy(catalogNeedsKey = true,
+                uiState = uiState.copy(catalogNeedsKey = true, catalogConflicts = catalogReviewLabels(catalogConflicts),
                     catalogStatus = getApplication<Application>().getString(R.string.catalog_key_required))
-            } catch (conflict: CatalogConflict) {
-                catalogConflicts = conflict.records
-                uiState = uiState.copy(catalogConflicts = conflict.records.objects().map {
-                    val data = it.optJSONObject("data")
-                    data?.optString("name", data.optString("description", it.getString("id"))) ?: it.getString("id")
-                }, catalogStatus = getApplication<Application>().getString(R.string.catalog_conflict_help))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                uiState = uiState.copy(catalogStatus = getApplication<Application>().getString(R.string.catalog_failed,
+                uiState = uiState.copy(catalogConflicts = catalogReviewLabels(catalogConflicts), catalogStatus = getApplication<Application>().getString(R.string.catalog_failed,
                     (error.message ?: "Unable to connect").take(500)))
             } finally {
                 uiState = uiState.copy(isSyncing = false)
@@ -2641,6 +2736,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             runCatching {
                 repo.importBackupFromUri(uri)
             }.onSuccess {
+                catalogConflicts = JSONArray()
                 val profile = repo.loadProfile()
                 val entries = repo.loadConsumedEntries()
                 val recentFoodsLoaded = repo.loadRecentFoods()
@@ -2885,7 +2981,7 @@ class NutritionViewModel(application: Application) : AndroidViewModel(applicatio
             val resolved = repo.resolveRecipeToFood(recipe)
             uiState = uiState.copy(
                 foodToAdd = resolved,
-                addFoodGramsInput = "100",
+                addFoodGramsInput = formatGrams(reusedFoodGrams(resolved, uiState.recentFoods, uiState.consumedEntries)),
                 message = "Recipe '${recipe.name}' ready to add."
             )
         }
@@ -2947,14 +3043,27 @@ class NutritionRepository(private val context: Context) {
         context.getSharedPreferences("catalog_connection", Context.MODE_PRIVATE).edit().putString("key", key.trim()).apply()
     }
 
+    internal fun pendingCatalogUpdates(): JSONArray = JSONArray(prefs.getString("catalog_pending_json", "[]"))
+
     fun clearCatalogConnection() {
         prefs.edit().remove("catalog_address").remove("catalog_server_id")
-            .remove("catalog_baseline_json").remove("catalog_last_sync").apply()
+            .remove("catalog_baseline_json").remove("catalog_pending_json").remove("catalog_last_sync").apply()
         context.getSharedPreferences("catalog_connection", Context.MODE_PRIVATE).edit().clear().apply()
     }
 
     internal suspend fun syncCatalog(address: String, key: String, conflicts: JSONArray, choice: ConflictChoice?): CatalogSyncResult =
         withContext(Dispatchers.IO) { catalogMutex.withLock { CatalogSyncClient(prefs).sync(address, key, conflicts, choice) } }
+
+    internal suspend fun importCatalogJson(draft: CatalogImportDraft) = withContext(Dispatchers.IO) {
+        catalogMutex.withLock {
+            val imported = appendCatalogImport(
+                JSONArray(prefs.getString("manual_foods_json", "[]")),
+                JSONArray(prefs.getString("recipes_json", "[]")), draft
+            )
+            check(prefs.edit().putString("manual_foods_json", imported.foods.toString())
+                .putString("recipes_json", imported.recipes.toString()).commit()) { "Unable to save imported items" }
+        }
+    }
 
     suspend fun searchUsdaFoods(query: String, apiKey: String): List<FoodItem> = withContext(Dispatchers.IO) {
         val q = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
@@ -3339,6 +3448,7 @@ class NutritionRepository(private val context: Context) {
 
             prefs.edit()
                 .remove("catalog_baseline_json")
+                .remove("catalog_pending_json")
                 .remove("catalog_last_sync")
                 .putString("profile_json", profileJson)
                 .putString("entries_json", entriesJson)
@@ -3660,6 +3770,7 @@ class NutritionRepository(private val context: Context) {
                         description = o.optString("description"),
                         brand = o.optString("brand"),
                         nutritionSource = o.optString("nutritionSource", ""),
+                        entryType = o.optString("entryType", if (id.startsWith("catalog-barcode-")) "scanned" else ""),
                         caloriesPer100g = o.optDouble("caloriesPer100g", o.optDouble("calories", 0.0)),
                         proteinPer100g = o.optDouble("proteinPer100g", 0.0),
                         carbsPer100g = o.optDouble("carbsPer100g", 0.0),
@@ -3688,6 +3799,10 @@ class NutritionRepository(private val context: Context) {
                     .put("description", e.description)
                     .put("brand", e.brand)
                     .put("nutritionSource", e.nutritionSource)
+                    .apply {
+                        if (isScannedFood(e)) put("entryType", "scanned")
+                        else if (e.entryType.isNotBlank()) put("entryType", e.entryType)
+                    }
                     .put("caloriesPer100g", e.caloriesPer100g)
                     .put("proteinPer100g", e.proteinPer100g)
                     .put("carbsPer100g", e.carbsPer100g)

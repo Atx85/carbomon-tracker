@@ -68,4 +68,28 @@ class RecentFoodsTest {
         assertEquals("100", formatGrams(100.0))
         assertEquals("0.125", formatGrams(0.125))
     }
+    @Test
+    fun reusingFoodStartsWithItsExactPreviousPortion() {
+        val reused = food.copy(lastUsedGrams = 37.5)
+        assertEquals("37.5", formatGrams(reusedFoodGrams(reused, emptyList(), emptyList())))
+        assertEquals(37.5, reusedFoodGrams(food, listOf(reused), emptyList()), 0.0)
+        assertEquals(37.5, reusedFoodGrams(food, emptyList(), listOf(entry(80.0), entry(37.5))), 0.0)
+    }
+
+    @Test
+    fun recipeReuseUsesSavedPortionAndDoesNotBorrowFromAnotherSource() {
+        val recipe = food.copy(source = FoodSource.RECIPE)
+        assertEquals(62.25, reusedFoodGrams(recipe, listOf(recipe.copy(lastUsedGrams = 62.25)), emptyList()), 0.0)
+        assertEquals(100.0, reusedFoodGrams(recipe, listOf(food.copy(lastUsedGrams = 250.0)), listOf(entry(250.0))), 0.0)
+    }
+
+    @Test
+    fun newFoodsDefaultTo100AndInvalidPortionsFallBackToValidHistory() {
+        assertEquals(100.0, reusedFoodGrams(food, emptyList(), emptyList()), 0.0)
+        for (invalid in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertEquals(42.5, reusedFoodGrams(food.copy(lastUsedGrams = invalid),
+                listOf(food.copy(lastUsedGrams = invalid)), listOf(entry(42.5), entry(invalid))), 0.0)
+        }
+    }
+
 }

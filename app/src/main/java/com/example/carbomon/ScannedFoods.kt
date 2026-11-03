@@ -9,7 +9,7 @@ internal fun scannedFoodId(barcode: String): String? {
     return "catalog-barcode-" + digits.padStart(14, '0')
 }
 
-internal fun isScannedFood(food: FoodItem): Boolean = food.id.startsWith("catalog-barcode-")
+internal fun isScannedFood(food: FoodItem): Boolean = food.id.startsWith("catalog-barcode-") || food.entryType == "scanned"
 
 internal fun findSavedScannedFood(foods: List<FoodItem>, barcode: String): FoodItem? {
     val id = scannedFoodId(barcode) ?: return null
@@ -41,7 +41,7 @@ internal fun parseScannedFood(barcode: String, root: JSONObject): FoodItem {
     val cholesterol = number("cholesterol_100g")?.times(1000.0)
     if (cholesterol != null) bounded(cholesterol, 100000.0, "cholesterol")
     return FoodItem(
-        id = id, source = FoodSource.MANUAL, description = description,
+        id = id, source = FoodSource.MANUAL, description = description, entryType = "scanned",
         brand = product.optString("brands", "").take(500),
         caloriesPer100g = bounded(calories, 1000.0, "energy", true),
         proteinPer100g = bounded(number("proteins_100g"), 100.0, "protein", true),

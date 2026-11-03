@@ -36,9 +36,8 @@ private fun nutrientData(source: JSONObject): JSONObject = JSONObject().apply {
 
 internal data class CatalogPlan(val changes: JSONArray)
 internal enum class ConflictChoice { LOCAL, SERVER }
-internal class CatalogConflict(val records: JSONArray) : Exception("These entries changed on another device. Choose which version to keep.")
 internal class CatalogKeyRequired : IllegalStateException("This server requires an access key")
-internal data class CatalogSyncResult(val foods: Int, val recipes: Int)
+internal data class CatalogSyncResult(val foods: Int, val recipes: Int, val pending: JSONArray = JSONArray())
 
 internal fun planCatalogSync(
     foods: JSONArray,
@@ -46,7 +45,9 @@ internal fun planCatalogSync(
     baseline: JSONArray,
     deviceId: String,
     conflicts: JSONArray = JSONArray(),
-    choice: ConflictChoice? = null
+    choice: ConflictChoice? = null,
+    approvedKeys: Set<String> = conflicts.objects().map(::recordKey).toSet(),
+    includeUnchanged: Boolean = false
 ): CatalogPlan {
     val previous = baseline.objects().associateBy(::recordKey)
     fun sharedId(kind: String, id: String): String = if (id.startsWith("catalog-") || previous.containsKey("$kind:$id")) id
@@ -61,7 +62,10 @@ internal fun planCatalogSync(
     foods.objects().filter { it.optString("source") == "MANUAL" }.forEach { food ->
         add("food", food.getString("id"), nutrientData(food)
             .put("description", food.getString("description")).put("brand", food.optString("brand", ""))
-            .put("nutritionSource", food.optString("nutritionSource", "")))
+            .put("nutritionSource", food.optString("nutritionSource", "")).apply {
+                if (food.getString("id").startsWith("catalog-barcode-") || food.optString("entryType") == "scanned") put("entryType", "scanned")
+                else if (food.optString("entryType").isNotBlank()) put("entryType", food.getString("entryType"))
+            })
     }
     recipes.objects().forEach { recipe ->
         val ingredients = JSONArray()
@@ -87,9 +91,9 @@ internal fun planCatalogSync(
         val deleted = current == null
         val changed = if (deleted) old != null && !old.optBoolean("deleted")
             else old == null || old.optBoolean("deleted") || canonicalJson(current!!.get("data")) != canonicalJson(old.get("data"))
-        if (!changed) return@forEach
+        if (!changed && !includeUnchanged) return@forEach
         val conflict = decisions[key]
-        if (conflict != null && choice == ConflictChoice.SERVER) return@forEach
+        if (conflict != null && (choice != ConflictChoice.LOCAL || key !in approvedKeys)) return@forEach
         val base = if (conflict != null && choice == ConflictChoice.LOCAL) conflict.getLong("revision") else old?.getLong("revision") ?: 0
         if (deleted && base == 0L) return@forEach
         val identity = current ?: old!!
@@ -125,6 +129,7 @@ internal fun catalogToStorage(catalog: JSONObject): CatalogStorage {
         if (kind == "food") {
             require(data.getString("description").isNotBlank())
             checkNutrients(data)
+            require(!data.has("entryType") || data.getString("entryType") in setOf("scanned", "manual")) { "Invalid food entry type" }
             foods.put(data.put("source", "MANUAL"))
         } else {
             require(data.getString("name").isNotBlank())
@@ -146,6 +151,37 @@ internal fun catalogToStorage(catalog: JSONObject): CatalogStorage {
     return CatalogStorage(foods, recipes)
 }
 
+// Keep incoming replacements separate from additions. Decisions apply only to the
+// exact record reviewed; a newer revision must be reviewed again.
+internal fun reviewIncomingCatalog(
+    catalog: JSONObject,
+    local: JSONArray,
+    baseline: JSONArray,
+    decisions: JSONArray = JSONArray(),
+    choice: ConflictChoice? = null
+): Pair<JSONObject, JSONArray> {
+    val localByKey = local.objects().associateBy(::recordKey)
+    val previous = baseline.objects().associateBy(::recordKey)
+    val approved = decisions.objects().associateBy(::recordKey)
+    val pending = JSONArray()
+    val merged = JSONArray()
+    catalog.getJSONArray("records").objects().forEach { remote ->
+        val key = recordKey(remote)
+        val current = localByKey[key] ?: previous[key]?.let {
+            JSONObject(it.toString()).put("deleted", true).put("data", JSONObject.NULL)
+        }
+        val same = current != null && current.optBoolean("deleted") == remote.optBoolean("deleted") &&
+            (remote.optBoolean("deleted") || canonicalJson(current.get("data")) == canonicalJson(remote.get("data")))
+        val decision = approved[key]
+        val accept = choice == ConflictChoice.SERVER && decision != null && canonicalJson(decision) == canonicalJson(remote)
+        if (current != null && !same && !accept) {
+            pending.put(remote)
+            merged.put(JSONObject(current.toString()).put("revision", remote.getLong("revision")))
+        } else merged.put(remote)
+    }
+    return JSONObject(catalog.toString()).put("records", merged) to pending
+}
+
 internal fun normalizeCatalogUrl(raw: String): URL {
     val url = URL(raw.trim().trimEnd('/'))
     require(url.protocol == "http" || url.protocol == "https") { "Use an http:// or https:// server address" }
@@ -157,7 +193,7 @@ internal fun normalizeCatalogUrl(raw: String): URL {
 }
 
 internal class CatalogSyncClient(private val prefs: SharedPreferences) {
-    fun sync(address: String, key: String, conflicts: JSONArray, choice: ConflictChoice?): CatalogSyncResult {
+    fun sync(address: String, key: String, conflicts: JSONArray, choice: ConflictChoice?, retryAttempt: Int = 0): CatalogSyncResult {
         val baseUrl = normalizeCatalogUrl(address)
         val addresses = InetAddress.getAllByName(baseUrl.host)
         require(addresses.isNotEmpty() && addresses.all { it.isLoopbackAddress || it.isSiteLocalAddress || it.isLinkLocalAddress ||
@@ -168,7 +204,12 @@ internal class CatalogSyncClient(private val prefs: SharedPreferences) {
         val foodRaw = prefs.getString("manual_foods_json", null)
         val recipeRaw = prefs.getString("recipes_json", null)
         val baseline = JSONArray(prefs.getString("catalog_baseline_json", "[]"))
-        val plan = planCatalogSync(JSONArray(foodRaw ?: "[]"), JSONArray(recipeRaw ?: "[]"), baseline, deviceId, conflicts, choice)
+        val pending = JSONArray(prefs.getString("catalog_pending_json", "[]"))
+        val deferred = (pending.objects() + conflicts.objects()).associateBy(::recordKey)
+        val reviews = JSONArray().apply { deferred.values.forEach { put(it) } }
+        // Only the versions explicitly presented by the UI can be approved.
+        val plan = planCatalogSync(JSONArray(foodRaw ?: "[]"), JSONArray(recipeRaw ?: "[]"), baseline, deviceId,
+            reviews, choice, if (choice == null) emptySet() else conflicts.objects().map(::recordKey).toSet())
         val serverId = prefs.getString("catalog_server_id", "") ?: ""
         val payload = JSONObject().put("schemaVersion", 1).put("serverId", serverId).put("changes", plan.changes)
         val conn = (URL(baseUrl.toString().trimEnd('/') + "/api/v1/sync").openConnection() as HttpURLConnection).apply {
@@ -200,14 +241,31 @@ internal class CatalogSyncClient(private val prefs: SharedPreferences) {
                 buffer.toString("UTF-8")
             } ?: throw IllegalStateException("Server returned HTTP $code")
             val result = JSONObject(raw)
-            if (code == 409 && result.has("conflicts")) throw CatalogConflict(result.getJSONArray("conflicts"))
+            if (code == 409 && result.has("conflicts")) {
+                check(retryAttempt < 3) { "Catalogue keeps changing. Please sync again." }
+                val incoming = result.getJSONArray("conflicts")
+                // Defer conflicting uploads and retry the rest so additions can sync.
+                val combined = (reviews.objects() + incoming.objects()).associateBy(::recordKey)
+                check(choice != null || incoming.objects().any { recordKey(it) !in deferred }) { "Catalogue keeps changing. Please sync again." }
+                conn.disconnect()
+                return sync(address, key, JSONArray().apply { combined.values.forEach { put(it) } }, null, retryAttempt + 1)
+            }
             check(code == 200) { result.optString("error", "Server returned HTTP $code").take(500) }
             check(serverId.isEmpty() || result.getString("serverId") == serverId) { "Server identity changed" }
             result
         } finally {
             conn.disconnect()
         }
-        val storage = catalogToStorage(catalog)
+        // Validate the complete download, including updates awaiting confirmation.
+        catalogToStorage(catalog)
+        val localRecords = JSONArray().apply {
+            planCatalogSync(JSONArray(foodRaw ?: "[]"), JSONArray(recipeRaw ?: "[]"), baseline, deviceId,
+                includeUnchanged = true).changes.objects().forEach {
+                put(JSONObject(it.toString()).put("revision", 1).apply { remove("baseRevision") })
+            }
+        }
+        val (reviewed, awaiting) = reviewIncomingCatalog(catalog, localRecords, baseline, conflicts, choice)
+        val storage = catalogToStorage(reviewed)
         // The repository holds its catalogue mutex throughout sync. Keep this guard as
         // protection against future writers bypassing that lock.
         check(foodRaw == prefs.getString("manual_foods_json", null) && recipeRaw == prefs.getString("recipes_json", null)) {
@@ -253,9 +311,10 @@ internal class CatalogSyncClient(private val prefs: SharedPreferences) {
             .putString("recent_foods_json", recent)
             .putString("foods_cache_json", cached)
             .putString("catalog_baseline_json", catalog.getJSONArray("records").toString())
+            .putString("catalog_pending_json", awaiting.toString())
             .putString("catalog_server_id", catalog.getString("serverId"))
             .putLong("catalog_last_sync", System.currentTimeMillis())
             .commit()) { "Unable to save downloaded catalogue. Please sync again." }
-        return CatalogSyncResult(storage.foods.length(), storage.recipes.length())
+        return CatalogSyncResult(storage.foods.length(), storage.recipes.length(), awaiting)
     }
 }

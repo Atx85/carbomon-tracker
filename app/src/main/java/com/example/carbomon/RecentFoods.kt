@@ -17,3 +17,15 @@ internal fun recentFoodsWithAmounts(
         food.copy(lastUsedGrams = grams)
     }
 }
+
+internal fun reusedFoodGrams(
+    food: FoodItem,
+    recentFoods: List<FoodItem>,
+    entries: List<ConsumedFoodEntry>
+): Double {
+    fun Double?.validAmount(): Double? = this?.takeIf { it.isFinite() && it > 0.0 }
+    return food.lastUsedGrams.validAmount()
+        ?: recentFoods.firstOrNull { it.source == food.source && it.id == food.id }?.lastUsedGrams.validAmount()
+        ?: entries.lastOrNull { it.source == food.source && it.foodId == food.id && it.gramsConsumed.validAmount() != null }?.gramsConsumed
+        ?: 100.0
+}

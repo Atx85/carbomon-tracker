@@ -46,13 +46,23 @@ For an exact Lidl UK product, enter its name, brand and per-100-g label values u
 
 Generic staples are clearly labelled and may differ from a particular package. See [food data sources](docs/food-data-sources.md) for provenance and units.
 
+## Import food and recipe JSON on your phone
+
+In **Add food**, open **Import food or recipe JSON** below the food lookup card. Choose Food or Recipe, then tap **Copy AI prompt and JSON format**. The prompt includes the same schema and example as the server website, plus per-100-g units and instructions for unknown values. Paste it into any AI chat or browser and discuss your food, label, ingredients and recipe there. The app does not contact an AI service or need an AI account.
+
+Copy the resulting JSON back to the app, tap **Paste from clipboard**, then **Validate and review**. You can paste one object or a list of up to 100 items of the selected type; a surrounding JSON code fence is accepted. Review the names, sources/notes, ingredient amounts and nutrition before tapping **Save reviewed items offline**. Food appears in name search; recipes appear under Recipes. Saving does not add a meal to the diary. Phone import and saving work without a server connection; your external AI chat needs its own connectivity.
+
+Imported entries get fresh catalogue IDs and join the next manual server sync when home. They do not overwrite existing entries. Retrying a save of the same reviewed preview does not duplicate it; starting a new import creates new entries. Invalid lists are rejected together, rather than partially saved. The phone and server bundle the same schemas and examples from `server/schemas` and `server/examples`.
+
+Core nutrition must be provided as finite numbers within the schema limits. Optional omitted nutrients use the server catalogue defaults (zero); missing cholesterol stays unknown. These defaults are called out in the review. Do not treat AI estimates as verified package labels. For recipes, ingredient nutrition is per 100 g and `gramsUsed` is the ingredient amount; only include a measured finished dish weight, otherwise ingredient weight is used.
+
 ## Cholesterol tracking
 
 Food search results show cholesterol per 100 g, and diary entries show the amount for the portion eaten. Daily and weekly diary totals include cholesterol; the Micronutrients tab shows the selected day. Manual foods and manual recipe ingredients accept an optional **Cholesterol (mg / 100 g)** value.
 
 Leave cholesterol blank when it is unknown; enter zero only when confirmed. Missing values are flagged in totals. Recipes with any unknown ingredient cholesterol remain unknown when logged, while recipe cards show the known subtotal and missing count. Values are retained in saved foods, recent foods, recipes and backups. Older backups still import, with absent cholesterol treated as unknown.
 
-Built-in foods include cholesterol from their documented sources. API lookups use available cholesterol data from USDA, Open Food Facts and FatSecret. This tracks dietary intake in milligrams, without assigning a daily target.
+Built-in foods include cholesterol from their documented sources. API lookups use available cholesterol data from USDA, Open Food Facts and FatSecret. The diary summary shows dietary intake against the FDA nutrition-labelling reference of 300 mg per day (2,100 mg for a week). This is a general reference, not a personalised medical limit or a target to reach. Missing cholesterol values are flagged and percentages use only the known subtotal. Reference: [FDA Daily Values](https://www.fda.gov/food/nutrition-facts-label/daily-value-and-percent-daily-value-nutrition-and-supplement-facts-labels).
 
 ## Tech Stack
 - Kotlin
@@ -119,8 +129,8 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 The [standalone catalogue server](server/README.md) runs on Windows or Linux without Apache or Node. Its browser page accepts pasted food/recipe JSON, including lists from an LLM, with validation and a preview before saving.
 
-In the app, open **Setup → Shared food and recipe catalogue**, tap **Find server** (or enter its address), and tap **Sync foods and recipes**. No access key is needed for the default trusted-LAN setup. Sync shares your saved scanned products, manual foods and recipes in both directions, including edits and recipe deletions. Downloaded entries stay available offline and appear in search. Diary entries and profile information remain on your phone. Concurrent edits require an explicit choice of which version to keep.
+In the app, open **Setup → Shared food and recipe catalogue**, tap **Find server** (or enter its address), and tap **Sync foods and recipes**. No access key is needed for the default trusted-LAN setup. Sync shares your saved scanned products, manual foods and recipes in both directions, including edits and recipe deletions. Downloaded entries stay available offline and appear in search. Diary entries and profile information remain on your phone. New items arrive automatically during sync. Incoming edits and deletions of existing items wait for per-item confirmation in Setup; choose **Confirm incoming change** or **Keep my version** (which sends your copy to the server). Pending reviews survive app restarts and do not block new items. A newer server revision requires a fresh confirmation.
 
 Servers also discover each other and automatically collect missing entries on the trusted LAN. Existing versions are preserved; later edits/deletions are not mirrored between servers. To move the original catalogue to another computer, stop it and copy its entire data folder. See the [server guide](server/README.md) for peer-sharing controls and migration instructions.
 
-Successful barcode lookups now save products automatically for offline use and the next catalogue sync. Repeated scans use the saved product, and barcode-based IDs prevent duplicate contributions across phones. Older cached products join sharing when scanned again.
+Successful barcode lookups now save products automatically for offline use and the next catalogue sync. Repeated scans use the saved product, and barcode-based IDs prevent duplicate contributions across phones. Older cached products join sharing when scanned again. Shared scanned products carry `entryType: "scanned"`, and the server listing labels them **Scanned**. Update the server alongside the app so its food schema accepts this optional field.
